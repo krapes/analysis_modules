@@ -24,6 +24,8 @@ class SankeyFlow:
 	title = None
 
 	def __init__(self, data: pd.DataFrame, palette: list = None):
+		if len(data) == 0:
+			raise Exception("len(data) cannot be zero")
 		self._data = data
 		self._palette = (palette if palette != None
 							else self._get_palette(self.default_palette,
@@ -94,7 +96,11 @@ class SankeyFlow:
 		#  Here, I passed the colors as HEX, but we need to pass it as RGB. This loop
 		# will convert from HEX to RGB:
 		for i, col in enumerate(palette):
-			palette[i] = tuple(int(col[i:i+2], 16) for i in (0, 2, 4))
+			for i in (0, 2, 4):
+				try:
+					palette[i] = tuple(int(col[i:i+2], 16))
+				except:
+					pass
 
 		# Append a Seaborn complementary palette to your palette in case you did not
 		# provide enough colors to style every event
@@ -109,10 +115,10 @@ class SankeyFlow:
 	@staticmethod
 	def _build_node_dict(data: pd.DataFrame, palette: list) -> dict:
 
-		all_events = list(data.event_name.unique())
+		
 		grouped = data.groupby('event_name')
-		ideal_node_locations = grouped.apply(lambda row: row.rank_event.mode())
-		nodes = pd.DataFrame(ideal_node_locations).groupby(0)
+		ideal_node_locations = grouped.rank_event.apply(lambda row: row.mode())
+		nodes = pd.DataFrame(ideal_node_locations).groupby('rank_event')
 
 		i = 0
 		nodes_dict = {}
@@ -121,9 +127,9 @@ class SankeyFlow:
 			all_events_at_this_rank = [e[0] for e in node[1].index.to_list()]
 
 			# Read the colors for these events and store them in a list...
-			rank_palette = []
-			for event in all_events_at_this_rank:
-				rank_palette.append(palette[list(all_events).index(event)])
+			#rank_palette = []
+			#for event in all_events_at_this_rank:
+			#	rank_palette.append(palette[list(all_events).index(event)])
 
 				# Create a new key equal to the rank...
 			nodes_dict.update(
@@ -133,7 +139,7 @@ class SankeyFlow:
 			nodes_dict[node[0]].update(
 				{
 					'sources': all_events_at_this_rank,
-					'color': rank_palette,
+					#'color': rank_palette,
 					'sources_index': list(range(i, i+len(all_events_at_this_rank)))
 				}
 			)
@@ -147,10 +153,12 @@ class SankeyFlow:
 	def _find_rank(self, target, event_name, nodes_dict):
 		rank = -1
 		try_rank = 0
-		while rank < 0:
+		nodes = [n for n in nodes_dict.keys() if type(n) == int]
+		while rank < 0 and rank < max(nodes):
 			try_rank += 1
 			if event_name in nodes_dict[try_rank][target]:
 				rank = try_rank
+		if rank < 0: raise Exception(f"{event_name} not found in nodes_dict \n {nodes_dict}")
 		return rank
 
 
@@ -248,18 +256,18 @@ class SankeyFlow:
 		colors = []
 		for key, value in nodes_dict.items():
 			labels = labels + list(nodes_dict[key]['sources'])
-			colors = colors + list(nodes_dict[key]['color'])
+			#colors = colors + list(nodes_dict[key]['color'])
 
-		for idx, color in enumerate(colors):
-			colors[idx] = "rgb" + str(color) + ""
+		#for idx, color in enumerate(colors):
+		#	colors[idx] = "rgb" + str(color) + ""
 
 
 		return {'targets':targets,
 				'sources': sources,
 				'values': values,
 				'time_from_start': time_from_start,
-				'labels': labels,
-				'colors': colors}
+				'labels': labels}
+				#'colors': colors}
 
 
 	def _create_figure(self, output: dict, title: str):
@@ -267,13 +275,13 @@ class SankeyFlow:
 		plotting_features = self._seperate_lists(output['links_dict'],
 											output['nodes_dict'])
 
-
+		
 		fig = go.Figure(data=[go.Sankey(
 		node=dict(
 			thickness=10,  # default is 20
 			line=dict(color="black", width=0.5),
 			label=plotting_features['labels'],
-			color=plotting_features['colors']
+			#color=plotting_features['colors']
 		),
 		link=dict(
 			source=plotting_features['sources'],
@@ -290,9 +298,8 @@ class SankeyFlow:
 						  title_text=title,
 						  font=dict(size=15),
 						  plot_bgcolor='white')
-
+	
 		return fig
-
 
 	def plot(self, threshold: int, title: str):
 
