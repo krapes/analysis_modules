@@ -150,16 +150,17 @@ class SankeyFlow:
 
 		return nodes_dict
 
-	def _find_rank(self, target, event_name, nodes_dict):
-		rank = -1
-		try_rank = 0
+	def _find_rank(self, target: str, event_name: str, nodes_dict: dict) -> int:
+
+		try_rank = -1
 		nodes = [n for n in nodes_dict.keys() if type(n) == int]
-		while rank < 0 and rank < max(nodes):
-			try_rank += 1
+		for try_rank in nodes:
 			if event_name in nodes_dict[try_rank][target]:
-				rank = try_rank
-		if rank < 0: raise Exception(f"{event_name} not found in nodes_dict \n {nodes_dict}")
-		return rank
+				return try_rank
+		if rank < 0: 
+			logging.critical(f"target: {target} \nnodes: {nodes} \n nodes_dict: \n {nodes_dict}")
+			raise Exception(f"{event_name} not found in nodes_dict \n {nodes_dict}")
+		
 
 
 
@@ -216,7 +217,7 @@ class SankeyFlow:
 
 	def trim_links(self, threshold: int = 300) -> dict:
 
-
+		logging.info("Trimming links_dict")
 		def rev_eng_event_name(i):
 			idx = nodes_dict[self._find_rank('sources_index', i, nodes_dict)]['sources_index'].index(i)
 			source_event = nodes_dict[self._find_rank('sources_index', i, nodes_dict)]['sources'][idx]
