@@ -12,6 +12,9 @@ import chart_studio
 import chart_studio.plotly as py
 import plotly
 
+import dask
+from dask import dataframe as dd
+
 chart_studio.tools.set_credentials_file(username='kerri_jaya', api_key='pMY9gMxFv3QNRFBSfiV1')
 
 
@@ -23,38 +26,50 @@ class SankeyFlow:
 			   'BFD6DE', '3E5066', '353A3E', 'E6E6E6']
 	title = None
 
-	def __init__(self, data: pd.DataFrame, palette: list = None):
+	def __init__(self, name: str, data: pd.DataFrame, palette: list = None) -> None:
 		if len(data) == 0:
 			raise Exception("len(data) cannot be zero")
+		self.name = name
+		self.dataset_length = len(data)
 		self._data = data
 		self._palette = (palette if palette != None
 							else self._get_palette(self.default_palette,
 												(data.event_name.unique())))
 
-
 	@staticmethod
-	def _convert_datetimes(data: pd.DataFrame) -> pd.DataFrame:
-		# Making sure that time_event and time_install are Pandas Datetime types:
-		data['time_event'] = pd.to_datetime(data['time_event'], unit='s')
-		return data
-
-	@staticmethod
-	def _format_df(data: pd.DataFrame) -> pd.DataFrame:
-		# Based on the time of events, we can compute the rank of each action at
-		# the user_id level:
-
-		# a) Sort ascendingly per user_id and time_event
-		# sort by event_type to make sure installs come first
+	def index_user_events(data: pd.DataFrame) -> pd.DataFrame:
 		data.sort_values(['user_id', 'time_event'],
 						 ascending=[True, True], inplace=True)
 
 		# b) Group by user_id
 		grouped = data.groupby('user_id')
+
 		# c) Define a ranking function based on time_event, using the method = 'first'
 		# param to ensure no events have the same rank
 		def rank(x): return x['time_event'].rank(method='first').astype(int)
+
 		# d) Apply the ranking function to the data DF into a new "rank_event" column
 		data["rank_event"] = grouped.apply(rank).reset_index(0, drop=True)
+
+		return data
+
+	@staticmethod
+	def data_to_dask_dd(data):
+		if type(data) == pd.DataFrame:
+			return dd.from_pandas(data, npartitions=3)
+		return data
+
+	@staticmethod
+	def _convert_datetimes(data: pd.DataFrame) -> pd.DataFrame:
+		# Making sure that time_event and time_install are Pandas Datetime types:
+		if type(data) == pd.DataFrame:
+			data['time_event'] = pd.to_datetime(data['time_event'], unit='s')
+		else:
+			dd.to_datetime(data['time_event'], unit='s')
+		return data
+
+
+	def _format_df(self, data: pd.DataFrame) -> pd.DataFrame:
 
 
 		# Add, each row, the information about the next_event
@@ -190,20 +205,20 @@ class SankeyFlow:
 					if target_index in output['links_dict'][source_index]:
 						# ...then we increment the count of users with this source/target pair by 1, and keep track of the time from source to target
 						output['links_dict'][source_index][target_index]['unique_users'] += 1
-						output['links_dict'][source_index][target_index]['avg_time_from_start'] += user["time_from_start"].values[0]
+						output['links_dict'][source_index][target_index]['avg_time_from_start'] += (user["time_from_start"].values[0] + user["time_to_next"].values[0])
 					# ...but if the target is not already associated to this source...
 					else:
 						# ...we create a new key for this target, for this source, and initiate it with 1 user and the time from source to target
 						output['links_dict'][source_index].update({target_index:
 																   dict(
 																	   {'unique_users': 1,
-																		'avg_time_from_start': user["time_from_start"].values[0]}
+																		'avg_time_from_start': (user["time_from_start"].values[0] + user["time_to_next"].values[0])}
 																   )
 																   })
 				# ...but if this source isn't already available in the links_dict, we create its key and the key of this source's target, and we initiate it with 1 user and the time from source to target
 				else:
 					output['links_dict'].update({source_index: dict({target_index: dict(
-						{'unique_users': 1, 'avg_time_from_start': user["time_from_start"].values[0]})})})
+						{'unique_users': 1, 'avg_time_from_start': (user["time_from_start"].values[0] + user["time_to_next"].values[0])})})})
 			except Exception as e:
 				#pass1
 				raise e
@@ -250,7 +265,7 @@ class SankeyFlow:
 				targets.append(target_key)
 				values.append(target_value['unique_users'])
 				time_from_start.append(str(pd.to_timedelta(
-					target_value['avg_time_from_start'] / target_value['unique_users'])).split('.')[0])
+					target_value['avg_time_from_start'] / target_value['unique_users'], unit='sec')).split('.')[0])
 					# Split to remove the milliseconds information
 
 		labels = []
@@ -307,8 +322,9 @@ class SankeyFlow:
 		self.title = title
 		palette = self._palette
 		data = self._data
-		data = self._convert_datetimes(data)
-		data = self._format_df(data)
+		#data = self.index_user_events(data)
+		#data = self._convert_datetimes(data)
+		#data = self._format_df(data)
 
 		nodes_dict = self._build_node_dict(data, palette)
 		links_dict = self._build_link_dict(data, nodes_dict)
