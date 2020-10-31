@@ -358,7 +358,7 @@ class SankeyFlow:
 		return fig
 
 
-	def modify_threshold(self, threshold: int):
+	def sankey_modify_threshold(self, threshold: int):
 
 		if self.title is None:
 			raise Exception("Method 'plot' needs to be run before modify_threshold")
