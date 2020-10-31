@@ -81,15 +81,27 @@ class Flow(SankeyFlow):
         # return fig
 
     def distinct_sessionId_count_plot(self) -> None:
-        top_paths = self._open_sql('distinct_sessionId_count.sql')
-        df = client.query(top_paths.format(f"('{self._flow_name}')")).to_dataframe()
+        """ Gets the count of unique sessionIds per day and
+
+        :return: two plots containing unique sessionId count and the 14 day rolling average
+        """
+        sql = self._open_sql('distinct_sessionId_count.sql')
+        df = client.query(sql.format(self._formatted_flow_name())).to_dataframe()
         fig = self.time_stats(df, 'FlowName', ['count'])
         # return fig
 
     def _get_date(self,
-                   date: Optional[Union[str, datetime.date]]) -> datetime.date:
+                   date: Optional[Union[str, datetime.date]],
+                   default: datetime.date) -> datetime.date:
+        """ takes a date in various formats and returns it or it's default in the format
+            datetime.date
+
+        :param date: date that needs to be transformed to datetime.date
+        :param default: default value if date is None
+        :return: datetime.date
+        """
         if date is None:
-            date = self.start_date
+            date = default
         elif type(date) is str:
             date = date.strptime('%Y-%m-%d')
         elif type(date) is datetime.date:
@@ -100,12 +112,21 @@ class Flow(SankeyFlow):
         return date
 
     def _formatted_flow_name(self):
+        """ Returns the flow name formatted as a single entry in a tuple for the SQL
+        :return: the flow name formatted as a single entry in a tuple for the SQL
+        """
         return f"('{self._flow_name}')"
 
     def create_user_sequence(self,
                              start_date: datetime.date = None,
                              end_date: datetime.date = None) -> pd.DataFrame:
-        start_date, end_date = self._get_date(start_date), self._get_date(end_date)
+        """ Runs query user_sequence that returns the ADR events with timestamp and rank
+
+        :param start_date: all entries will be after this date
+        :param end_date: all entries will be before this date
+        :return: pandas dataframe with data
+        """
+        start_date, end_date = self._get_date(start_date, self.start_date), self._get_date(end_date, self.end_date)
         top_paths = self._open_sql('user_sequence.sql')
         query = top_paths.format(self._formatted_flow_name(),
                                  start_date.strftime('%Y-%m-%d'),
@@ -116,6 +137,11 @@ class Flow(SankeyFlow):
 
     @staticmethod
     def _to_datetime(date):
+        """ Converts a date object to a datetime object with time of midnight
+
+        :param date: date object that needs to be converted
+        :return: datetime object that starts at midnight
+        """
         return datetime.datetime.combine(date, datetime.datetime.min.time()).replace(tzinfo=None)
 
     def sankey_plot(self,
@@ -124,9 +150,22 @@ class Flow(SankeyFlow):
                     threshold: int = 0,
                     title: str = None,
                     data: pd.DataFrame = None) -> go.Figure:
-        start_date, end_date = self._get_date(start_date), self._get_date(end_date)
-        self._data = data if data is not None else self._data
-        self._data = self.create_user_sequence(start_date, end_date) if self._data is None else self._data
+        """
+        Creates a plotly Sankey figure of the flow between the dates start_date and end_date if
+        they are provided and using the data if provided. If not provided it will use self._data
+
+        :param start_date: All entries will occur after this date
+        :param end_date: All entries will occur before this date
+        :param threshold: paths with less than this number of users will not be displayed
+        :param title: chart title
+        :param data: Optional data that will be used to generate the plot
+        :return: SanKey figure
+        """
+        start_date, end_date = self._get_date(start_date, self.start_date), self._get_date(end_date, self.end_date)
+        if data is not None:
+            self._data = data
+        else:
+            self._data = self.create_user_sequence(start_date, end_date)
         # TODO reinstate date selection
         '''
         if start_date is not None:
@@ -139,12 +178,17 @@ class Flow(SankeyFlow):
         return fig
 
     def sankey_plot_of_path(self, path_nickname):
+        """ creates a sankey plot of only the path path_nickname
+
+        :param path_nickname: name of path to be extracted and plotted
+        :return: Sankey figure
+        """
         path_session_ids_query = self._open_sql('path_session_ids.sql')
         path_session_ids_query = path_session_ids_query.format(self._formatted_flow_name(),
                                                                path_nickname)
         path_session_ids = client.query(path_session_ids_query).to_dataframe().SessionId.to_list()
         data = self.create_user_sequence()
-        print(path_session_ids[:10])
+        print(f"DATA LENGTH {len(data)}")
         data = data[data['user_id'].isin(path_session_ids)]
         print(f"DATA LENGTH {len(data)}")
         fig = self.sankey_plot(title=f"User Path of {path_nickname}", data=data)
