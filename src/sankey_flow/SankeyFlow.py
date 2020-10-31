@@ -59,7 +59,7 @@ class SankeyFlow:
 		return data
 
 	@staticmethod
-	def data_to_dask_dd(data):
+	def data_to_dask_dd(data) -> dd.DataFrame:
 		if type(data) == pd.DataFrame:
 			return dd.from_pandas(data, npartitions=3)
 		return data
@@ -355,7 +355,7 @@ class SankeyFlow:
 		return fig
 
 
-	def sankey_modify_threshold(self, threshold: int):
+	def sankey_modify_threshold(self, threshold: int) -> go.Figure:
 
 		if self.title is None:
 			raise Exception("Method 'plot' needs to be run before modify_threshold")
