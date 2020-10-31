@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from scipy import stats
+import datetime
 import logging
 import copy
 
@@ -26,15 +27,19 @@ class SankeyFlow:
 			   'BFD6DE', '3E5066', '353A3E', 'E6E6E6']
 	title = None
 
-	def __init__(self, name: str, data: pd.DataFrame, palette: list = None) -> None:
-		if len(data) == 0:
-			raise Exception("len(data) cannot be zero")
-		self.name = name
-		self.dataset_length = len(data)
+	def __init__(self, data: pd.DataFrame = None, palette: list = None) -> None:
 		self._data = data
-		self._palette = (palette if palette != None
-							else self._get_palette(self.default_palette,
-												(data.event_name.unique())))
+
+
+	@property
+	def data(self) -> pd.DataFrame:
+		""" Sequence data used for creating the plot
+        """
+		return self._data
+
+	@data.setter
+	def data(self, value: pd.DataFrame) -> None:
+		self._data = value
 
 	@staticmethod
 	def index_user_events(data: pd.DataFrame) -> pd.DataFrame:
@@ -286,7 +291,7 @@ class SankeyFlow:
 				#'colors': colors}
 
 
-	def _create_figure(self, output: dict, title: str):
+	def _create_figure(self, output: dict, title: str) -> go.Figure:
 
 		plotting_features = self._seperate_lists(output['links_dict'],
 											output['nodes_dict'])
@@ -317,11 +322,24 @@ class SankeyFlow:
 	
 		return fig
 
-	def plot(self, threshold: int, title: str):
+	def plot(self,
+			 threshold: int,
+			 title: str,
+			 start_date: datetime.date = None,
+			 end_date: datetime.date = None) -> go.Figure:
+
+		if self._data is None or len(self._data) == 0:
+			raise Exception("SanKeyFlow self._data cannot be None or len zero")
+
 
 		self.title = title
-		palette = self._palette
-		data = self._data
+		palette = self._get_palette(self.default_palette, (self._data.event_name.unique()))
+		data = self._data.copy()
+		if start_date is not None:
+			data = data[data['time_event'] > start_date]
+		if end_date is not None:
+			data = data[data['time_event'] < end_date]
+
 		#data = self.index_user_events(data)
 		#data = self._convert_datetimes(data)
 		#data = self._format_df(data)
