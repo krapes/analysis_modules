@@ -305,7 +305,7 @@ class SankeyFlow:
 			value=plotting_features['values'],
 			label=plotting_features["time_from_start"],
 			hovertemplate='%{value} unique users went from %{source.label} to %{target.label}.<br />' +
-			'<br />It took them %{label} in average to reach this point from the start of the flow.<extra></extra>',
+			'<br />It took them %{label} on average from the start of the flow to finish event %{target.label}.<extra></extra>',
 		))])
 
 		fig.update_layout(autosize=True,
