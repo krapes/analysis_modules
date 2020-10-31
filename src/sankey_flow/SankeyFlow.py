@@ -322,8 +322,6 @@ class SankeyFlow:
 	
 		return fig
 
-	def _to_datetime(self, date):
-		return datetime.combine(date, datetime.min.time())
 
 	def plot(self,
 			 threshold: int,

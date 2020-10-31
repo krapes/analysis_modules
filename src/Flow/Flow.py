@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import datetime
-from typing import Tuple, Optional, Union
+from typing import Tuple, Optional, Union, List
 import plotly.graph_objects as go
 
 from src import SankeyFlow
@@ -32,13 +32,27 @@ class Flow(SankeyFlow):
         self.end_date = end_date if end_date is not None else datetime.date.today()
 
     def _open_sql(self, filename) -> str:
+        """ Opens the file from the SQLs folder in this module and returns
+            it as a string
+
+        :param filename: name of file containing the desired query
+        :return: string containing the contents of that file
+        """
         file_path = os.path.join(self.dir_path, 'SQLs', filename)
         with open(file_path) as f:
             file_content = f.read()
         return file_content
 
     @staticmethod
-    def time_stats(df, hue, topics) -> plt.Figure:
+    def time_stats(df: pd.DataFrame, hue: str, topics: List[str]) -> plt.Figure:
+        """Returns two line plots for every topic. The first containing a 14 day rolling
+            average, the second containing the daily average.
+
+        :param df: data containing values to be plotted
+        :param hue: column name of category labels
+        :param topics: metrics that are being plotted (Ex. count, duration, etc)
+        :return: Seaborn plot containing a total of 2*len(topics) graphs
+        """
         rows = 2 * len(topics)
         fig, axes = plt.subplots(nrows=rows, figsize=(15, 7.5 * rows))
 
@@ -55,6 +69,12 @@ class Flow(SankeyFlow):
         return fig
 
     def top_paths_plot(self) -> None:
+        """ Calculates the 10 most common user paths and plots their distinct
+            SessionId count and average call duration
+
+        :return: 4 Seaborn line plots containing distinct sessionId counts and
+        average call duration
+        """
         top_paths = self._open_sql('top_paths.sql')
         df = client.query(top_paths.format(f"('{self._flow_name}')")).to_dataframe()
         fig = self.time_stats(df, 'nickname', ['count', 'avg_duration'])
@@ -66,19 +86,18 @@ class Flow(SankeyFlow):
         fig = self.time_stats(df, 'FlowName', ['count'])
         # return fig
 
-    def _get_dates(self, start_date, end_date) -> Tuple[datetime.date, datetime.date]:
-        if start_date is None:
-            start_date = self.start_date
-        elif type(start_date) is str:
-            start_date.strptime('%Y-%m-%d')
+    def _get_date(self,
+                   date: Optional[Union[str, datetime.date]]) -> datetime.date:
+        if date is None:
+            date = self.start_date
+        elif type(date) is str:
+            date = date.strptime('%Y-%m-%d')
+        elif type(date) is datetime.date:
+            pass
+        else:
+            raise Exception(f"Value date need to be type str or datetime.date found {type(date)}")
 
-        if end_date is None:
-            end_date = self.end_date
-        elif type(end_date) is str:
-            end_date.strptime('%Y-%m-%d')
-
-        return start_date, end_date
-
+        return date
 
     def _formatted_flow_name(self):
         return f"('{self._flow_name}')"
@@ -86,7 +105,7 @@ class Flow(SankeyFlow):
     def create_user_sequence(self,
                              start_date: datetime.date = None,
                              end_date: datetime.date = None) -> pd.DataFrame:
-        start_date, end_date = self._get_dates(start_date, end_date)
+        start_date, end_date = self._get_date(start_date), self._get_date(end_date)
         top_paths = self._open_sql('user_sequence.sql')
         query = top_paths.format(self._formatted_flow_name(),
                                  start_date.strftime('%Y-%m-%d'),
@@ -103,13 +122,18 @@ class Flow(SankeyFlow):
                     start_date: Optional[Union[str, datetime.date]] = None,
                     end_date: Optional[Union[str, datetime.date]] = None,
                     threshold: int = 0,
-                    title: str = None) -> go.Figure:
-        start_date, end_date = self._get_dates(start_date, end_date)
+                    title: str = None,
+                    data: pd.DataFrame = None) -> go.Figure:
+        start_date, end_date = self._get_date(start_date), self._get_date(end_date)
+        self._data = data if data is not None else self._data
         self._data = self.create_user_sequence(start_date, end_date) if self._data is None else self._data
+        # TODO reinstate date selection
+        '''
         if start_date is not None:
             self._data = self._data[self._data['time_event'] > self._to_datetime(start_date)]
         if end_date is not None:
             self._data = self._data[self._data['time_event'] < self._to_datetime(end_date)]
+        '''
         title = f"{self._flow_name} From {start_date} to {end_date}" if title is None else title
         fig = self.plot(threshold, title)
         return fig
@@ -120,6 +144,8 @@ class Flow(SankeyFlow):
                                                                path_nickname)
         path_session_ids = client.query(path_session_ids_query).to_dataframe().SessionId.to_list()
         data = self.create_user_sequence()
-        self._data = data[data['user_id'].isin(path_session_ids)]
-        self.sankey_plot(title=f"User Path of {path_nickname}")
-
+        print(path_session_ids[:10])
+        data = data[data['user_id'].isin(path_session_ids)]
+        print(f"DATA LENGTH {len(data)}")
+        fig = self.sankey_plot(title=f"User Path of {path_nickname}", data=data)
+        return fig
