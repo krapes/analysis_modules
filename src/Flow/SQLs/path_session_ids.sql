@@ -79,26 +79,10 @@ FROM (
       ORDER BY count DESC
       LIMIT 10
       )
-),
-
-calc_values AS (
-SELECT
-      EXTRACT(DATE FROM TimeStamp) AS date,
-      COUNT(DISTINCT(SessionId)) AS count,
-      AVG(Duration) AS avg_duration,
-      nickname,
-      ANY_VALUE(Path) AS Path
-FROM Session_paths sp
-INNER JOIN
-top_10 t
-USING(Path)
-GROUP BY date, nickname
-
 )
 
-SELECT *,
-      AVG(count) OVER(PARTITION BY nickname ORDER BY date
-                 ROWS BETWEEN 14 PRECEDING AND CURRENT ROW) AS avg_14_day_count,
-      AVG(avg_duration) OVER(PARTITION BY nickname ORDER BY date
-                 ROWS BETWEEN 14 PRECEDING AND CURRENT ROW) AS avg_14_day_avg_duration
-FROM calc_values
+SELECT DISTINCT SessionId
+FROM Session_paths sess
+INNER JOIN top_10 top
+USING(Path)
+WHERE top.nickname = '{1}'

@@ -322,6 +322,9 @@ class SankeyFlow:
 	
 		return fig
 
+	def _to_datetime(self, date):
+		return datetime.combine(date, datetime.min.time())
+
 	def plot(self,
 			 threshold: int,
 			 title: str,
@@ -335,10 +338,6 @@ class SankeyFlow:
 		self.title = title
 		palette = self._get_palette(self.default_palette, (self._data.event_name.unique()))
 		data = self._data.copy()
-		if start_date is not None:
-			data = data[data['time_event'] > start_date]
-		if end_date is not None:
-			data = data[data['time_event'] < end_date]
 
 		#data = self.index_user_events(data)
 		#data = self._convert_datetimes(data)

@@ -79,17 +79,25 @@ class Flow(SankeyFlow):
 
         return start_date, end_date
 
+
+    def _formatted_flow_name(self):
+        return f"('{self._flow_name}')"
+
     def create_user_sequence(self,
                              start_date: datetime.date = None,
                              end_date: datetime.date = None) -> pd.DataFrame:
         start_date, end_date = self._get_dates(start_date, end_date)
         top_paths = self._open_sql('user_sequence.sql')
-        query = top_paths.format(f"('{self._flow_name}')",
+        query = top_paths.format(self._formatted_flow_name(),
                                  start_date.strftime('%Y-%m-%d'),
                                  end_date.strftime('%Y-%m-%d'))
         df = client.query(query).to_dataframe()
 
         return df
+
+    @staticmethod
+    def _to_datetime(date):
+        return datetime.datetime.combine(date, datetime.datetime.min.time()).replace(tzinfo=None)
 
     def sankey_plot(self,
                     start_date: Optional[Union[str, datetime.date]] = None,
@@ -97,8 +105,21 @@ class Flow(SankeyFlow):
                     threshold: int = 0,
                     title: str = None) -> go.Figure:
         start_date, end_date = self._get_dates(start_date, end_date)
-        if self._data is None:
-            self._data = self.create_user_sequence(start_date, end_date)
+        self._data = self.create_user_sequence(start_date, end_date) if self._data is None else self._data
+        if start_date is not None:
+            self._data = self._data[self._data['time_event'] > self._to_datetime(start_date)]
+        if end_date is not None:
+            self._data = self._data[self._data['time_event'] < self._to_datetime(end_date)]
         title = f"{self._flow_name} From {start_date} to {end_date}" if title is None else title
         fig = self.plot(threshold, title)
         return fig
+
+    def sankey_plot_of_path(self, path_nickname):
+        path_session_ids_query = self._open_sql('path_session_ids.sql')
+        path_session_ids_query = path_session_ids_query.format(self._formatted_flow_name(),
+                                                               path_nickname)
+        path_session_ids = client.query(path_session_ids_query).to_dataframe().SessionId.to_list()
+        data = self.create_user_sequence()
+        self._data = data[data['user_id'].isin(path_session_ids)]
+        self.sankey_plot(title=f"User Path of {path_nickname}")
+
