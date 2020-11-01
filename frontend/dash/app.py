@@ -23,17 +23,18 @@ fig = flow.sankey_plot()
 
 
 app.layout = html.Div(children=[
-    dbc.Row(dbc.Col(html.H1(children=f'SharkNinja - {FLOW_NAME}'))),
+    dbc.Row(dbc.Col(html.H1(children=f'SharkNinja'))),
+    dbc.Row(dbc.Col(html.H1(children=f'{FLOW_NAME}'))),
     dbc.Row(
             [
                 dbc.Col(dcc.Graph(id='sankey'), width=11),
                 dbc.Col([html.Label('Threshold3'),
                         dcc.Slider(
                             id='threshold_slider',
-                            min=1,
-                            max=100,
+                            min=0,
+                            max=flow.sankey_max_links(),
                             value=10,
-                            marks={str(i): str(i) for i in range(100) if i % 10 == 0},
+                            marks={str(i): str(i) for i in range(flow.sankey_max_links()) if i % int(flow.sankey_max_links()/25) == 0},
                             step=10,
                             vertical=True
                         )])

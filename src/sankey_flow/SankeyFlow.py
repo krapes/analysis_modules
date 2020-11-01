@@ -257,6 +257,17 @@ class SankeyFlow:
 
 		return links_dict
 
+	def sankey_max_links(self):
+		max_links = 0
+		links_dict = self.links_dict
+		level_1s = links_dict.keys()
+		for level_1 in level_1s:
+			level_2s = list(links_dict[level_1].keys())
+			for level_2 in level_2s:
+				if links_dict[level_1][level_2]['unique_users'] > max_links:
+					max_links = links_dict[level_1][level_2]['unique_users']
+		return max_links
+
 
 	def _seperate_lists(self, links_dict: dict, nodes_dict: dict) -> dict:
 		targets = []
