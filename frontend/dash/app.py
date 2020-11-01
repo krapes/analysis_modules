@@ -7,6 +7,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
+import dash_bootstrap_components as dbc
 import plotly.express as px
 import pandas as pd
 
@@ -14,7 +15,7 @@ from src import Flow
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.GRID, external_stylesheets])
 
 FLOW_NAME = "Italy - Customer Service"
 flow = Flow(flow_name=FLOW_NAME)
@@ -22,24 +23,21 @@ fig = flow.sankey_plot()
 
 
 app.layout = html.Div(children=[
-    html.H1(children=f'SharkNinja - {FLOW_NAME}'),
-
-    html.Div(children='''
-        Dash: A web application framework for Python.
-    '''),
-
-    dcc.Graph(
-        id='sankey'
-    ),
-    html.Label('Slider'),
-    dcc.Slider(
-        id='threshold_slider',
-        min=1,
-        max=100,
-        value=10,
-        marks={str(i): str(i) for i in range(100)},
-        step=None
-    )
+    dbc.Row(dbc.Col(html.H1(children=f'SharkNinja - {FLOW_NAME}'))),
+    dbc.Row(
+            [
+                dbc.Col(dcc.Graph(id='sankey'), width=11),
+                dbc.Col([html.Label('Threshold3'),
+                        dcc.Slider(
+                            id='threshold_slider',
+                            min=1,
+                            max=100,
+                            value=10,
+                            marks={str(i): str(i) for i in range(100) if i % 10 == 0},
+                            step=10,
+                            vertical=True
+                        )])
+            ])
 ])
 
 @app.callback(
