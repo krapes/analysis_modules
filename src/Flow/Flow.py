@@ -6,6 +6,7 @@ import pandas as pd
 import datetime
 from typing import Tuple, Optional, Union, List
 import plotly.graph_objects as go
+import pytz
 
 from src import SankeyFlow
 
@@ -42,6 +43,15 @@ class Flow(SankeyFlow):
         with open(file_path) as f:
             file_content = f.read()
         return file_content
+
+    def date_at_percent(self, percentage):
+        if hasattr(self, 'master') == False:
+            self._get_master()
+        start, end = self.master['time_event'].min(), self.master['time_event'].max()
+        delta_from_start = (end - start) * percentage/100
+        date = (start + delta_from_start).to_pydatetime().date()
+        print(percentage, start, delta_from_start, date)
+        return date
 
     @staticmethod
     def time_stats(df: pd.DataFrame, hue: str, topics: List[str]) -> plt.Figure:
@@ -117,6 +127,15 @@ class Flow(SankeyFlow):
         """
         return f"('{self._flow_name}')"
 
+    def _get_master(self):
+        start_date, end_date = self._get_date(None, self.start_date), self._get_date(None, self.end_date)
+        top_paths = self._open_sql('user_sequence.sql')
+        query = top_paths.format(self._formatted_flow_name(),
+                                 start_date.strftime('%Y-%m-%d'),
+                                 end_date.strftime('%Y-%m-%d'))
+        self.master = client.query(query).to_dataframe()
+        print(f"length master: {len(self.master)}")
+
     def create_user_sequence(self,
                              start_date: datetime.date = None,
                              end_date: datetime.date = None) -> pd.DataFrame:
@@ -126,13 +145,14 @@ class Flow(SankeyFlow):
         :param end_date: all entries will be before this date
         :return: pandas dataframe with data
         """
-        start_date, end_date = self._get_date(start_date, self.start_date), self._get_date(end_date, self.end_date)
-        top_paths = self._open_sql('user_sequence.sql')
-        query = top_paths.format(self._formatted_flow_name(),
-                                 start_date.strftime('%Y-%m-%d'),
-                                 end_date.strftime('%Y-%m-%d'))
-        df = client.query(query).to_dataframe()
+        if hasattr(self, 'master') == False:
+            self._get_master()
 
+        df = self.master.copy()
+        df = df[df['time_event'] > self._to_datetime(start_date)]
+        df = df[df['time_event'] < self._to_datetime(end_date)]
+        print(f"length df: {len(df)}")
+        print(self._to_datetime(start_date), self._to_datetime(end_date))
         return df
 
     @staticmethod
@@ -142,7 +162,7 @@ class Flow(SankeyFlow):
         :param date: date object that needs to be converted
         :return: datetime object that starts at midnight
         """
-        return datetime.datetime.combine(date, datetime.datetime.min.time()).replace(tzinfo=None)
+        return pytz.utc.localize(datetime.datetime.combine(date, datetime.datetime.min.time())) #.replace(tzinfo='utc')
 
     def sankey_plot(self,
                     start_date: Optional[Union[str, datetime.date]] = None,
