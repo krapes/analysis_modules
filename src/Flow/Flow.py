@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import datetime
-from typing import Tuple, Optional, Union, List
+from typing import Tuple, Optional, Union, List, Dict
 import plotly.graph_objects as go
 import pytz
 import plotly.express as px
@@ -55,13 +55,17 @@ class Flow(SankeyFlow):
         return date
 
     @staticmethod
-    def time_stats(df: pd.DataFrame, hue: str, topics: List[str]) -> plt.Figure:
+    def time_stats(df: pd.DataFrame,
+                   hue: str,
+                   topics: Dict[str, int],
+                   dates: Tuple(datetime.date, datetime.date) = None) -> plt.Figure:
         """Returns two line plots for every topic. The first containing a 14 day rolling
             average, the second containing the daily average.
 
         :param df: data containing values to be plotted
         :param hue: column name of category labels
         :param topics: metrics that are being plotted (Ex. count, duration, etc)
+        :param dates: date range where the plots will be shaded
         :return: plotly figure containing a total of 2*len(topics) graphs
         """
         def plot_traces(fig: go.Figure,
@@ -97,13 +101,13 @@ class Flow(SankeyFlow):
                 fig.add_trace(chart, row=row, col=col)
             return fig
 
-        rows = 2 * len(topics)
+        rows = len(topics.keys())
 
-        titles = [""] * rows
-        for i, topic in enumerate(topics):
+        titles = [""] * len(topics.keys()) * 2
+        for i, topic in enumerate(topics.keys()):
             titles[i] = f"14 Day Rolling Average {topic}"
-            titles[(i + len(topics))] = topic
-        fig = make_subplots(rows=rows, cols=1, subplot_titles=tuple(titles))
+            titles[(i + len(topics.keys()))] = topic
+        fig = make_subplots(rows=2, cols=len(topics.keys()), subplot_titles=tuple(titles))
 
         for i, topic in enumerate(topics, 1):
             fig = plot_traces(fig,
@@ -111,14 +115,19 @@ class Flow(SankeyFlow):
                               x='date',
                               y=f"avg_14_day_{topic}",
                               hue=hue,
-                              row=i, col=1)
-
+                              row=1, col=topics[topic])
+            y_max = df[f"avg_14_day_{topic}"].max()
+            fig.add_trace(go.Scatter(x=[dates[0], dates[1]], y=[y_max, y_max], fill='tozeroy'),
+                          row=1, col=topics[topic])
             fig = plot_traces(fig,
                               data=df,
                               x='date',
                               y=topic,
                               hue=hue,
-                              row=(i + len(topics)), col=1)
+                              row=2, col=topics[topic])
+            y_max = df[topic].max()
+            fig.add_trace(go.Scatter(x=[dates[0], dates[1]], y=[y_max, y_max], fill='tozeroy'),
+                          row=1, col=topics[topic])
 
         fig.update_layout(width=700, height=(300 * rows))
         return fig
@@ -166,7 +175,7 @@ class Flow(SankeyFlow):
         """
         top_paths = self._open_sql('top_paths.sql')
         df = client.query(top_paths.format(f"('{self._flow_name}')")).to_dataframe()
-        fig = self.time_stats(df, 'nickname', ['count', 'avg_duration'])
+        fig = self.time_stats(df, 'nickname', {'count': 1, 'avg_duration': 2})
         fig = self._fig_layout(fig)
         return fig
 
@@ -177,7 +186,7 @@ class Flow(SankeyFlow):
         """
         sql = self._open_sql('distinct_sessionId_count.sql')
         df = client.query(sql.format(self._formatted_flow_name())).to_dataframe()
-        fig = self.time_stats(df, 'FlowName', ['count'])
+        fig = self.time_stats(df, 'FlowName', {'count': 1})
         fig = self._fig_layout(fig)
         return fig
 
