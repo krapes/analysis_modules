@@ -43,24 +43,28 @@ app.layout = html.Div(children=[
                             min=0,
                             max=flow.sankey_max_links(),
                             value=10,
-                            #marks={str(i): str(i) for i in range(flow.sankey_max_links()) if i % int(flow.sankey_max_links()/25) == 0},
-                            step=10,
+                            step=1,
                             vertical=True
                         )])
             ]),
-    dbc.Row([dbc.Col(html.H4(id='date_range'), width=3),
-             dbc.Col(dcc.RangeSlider(
-                id='date_slider',
-                min=0,
-                max=100,
-                value=[0, 100],
-                step=5,
-            ), width=11)])
+    dbc.Row([dbc.Col(dcc.Graph(id='paths_time'), width=6),
+             dbc.Col([dcc.Graph(id='totals_time'),
+                      html.H4(id='date_range'),
+                      dcc.RangeSlider(
+                                        id='date_slider',
+                                        min=0,
+                                        max=100,
+                                        value=[0, 100],
+                                        step=5,
+                                    )], width=6)]),
+    dbc.Row([])
 
 ])
 
 @app.callback(
     [Output('sankey', 'figure'),
+     Output('paths_time', 'figure'),
+     Output('totals_time', 'figure'),
      Output('threshold_slider', component_property='max'),
      Output('flow_name', 'children'),
      Output('date_range', 'children')],
@@ -80,9 +84,11 @@ def update_figure(threshold, flow_name, date_range):
         print("New plot computed")
     flow.start_date, flow.end_date = flow.date_at_percent(date_range[0]), flow.date_at_percent(date_range[1])
     date_range = f"Showing Sessions from {flow.start_date} to {flow.end_date}"
-    fig = flow.sankey_plot()
+    fig_sankey = flow.sankey_plot()
+    fig_totals_time = flow.distinct_sessionId_count_plot()
+    fig_paths_time = flow.top_paths_plot()
     max = flow.sankey_max_links()
-    return fig, max, flow_name, date_range
+    return fig_sankey, fig_paths_time, fig_totals_time,  max, flow_name, date_range
 
 
 if __name__ == '__main__':

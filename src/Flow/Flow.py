@@ -7,6 +7,8 @@ import datetime
 from typing import Tuple, Optional, Union, List
 import plotly.graph_objects as go
 import pytz
+import plotly.express as px
+from plotly.subplots import make_subplots
 
 from src import SankeyFlow
 
@@ -48,9 +50,8 @@ class Flow(SankeyFlow):
         if hasattr(self, 'master') == False:
             self._get_master()
         start, end = self.master['time_event'].min(), self.master['time_event'].max()
-        delta_from_start = (end - start) * percentage/100
+        delta_from_start = (end - start) * percentage / 100
         date = (start + delta_from_start).to_pydatetime().date()
-        print(percentage, start, delta_from_start, date)
         return date
 
     @staticmethod
@@ -61,21 +62,99 @@ class Flow(SankeyFlow):
         :param df: data containing values to be plotted
         :param hue: column name of category labels
         :param topics: metrics that are being plotted (Ex. count, duration, etc)
-        :return: Seaborn plot containing a total of 2*len(topics) graphs
+        :return: plotly figure containing a total of 2*len(topics) graphs
         """
+        def plot_traces(fig: go.Figure,
+                        data: pd.DataFrame,
+                        x: str,
+                        y: str,
+                        hue: str,
+                        row: int,
+                        col: int,
+                        mode: str = 'lines') -> go.Figure:
+            """ The goal is create a similar behavior as plotly express or seaborn.
+                This function will take x, y, and hue column names and use them to layer
+                the correct scatter plots together.
+
+            :param fig: ploty fig where this plot (or these traces) will be places
+            :param data: dataframe containing all the columns listed in x, y, and hue
+            :param x: column name of x-axis
+            :param y: column name of y-axis
+            :param hue: column name of category column
+            :param row: the row number inside the fig where the plot will be located
+            :param col: the column number inside the fig where the plot
+            :param mode: plotly.graph_objects.Scatter mode value
+            :return: plot fig with plot added s
+            """
+            for n, category in enumerate(data[hue].unique()):
+                temp = data[data[hue] == category]
+                chart = go.Scatter(x=temp[x],
+                                                y=temp[y],
+                                                mode='lines',
+                                                name=category,
+                                                marker_color=px.colors.sequential.Plasma[n]
+                                                )
+                fig.add_trace(chart, row=row, col=col)
+            return fig
+
         rows = 2 * len(topics)
-        fig, axes = plt.subplots(nrows=rows, figsize=(15, 7.5 * rows))
 
+        titles = [""] * rows
         for i, topic in enumerate(topics):
-            chart = sns.lineplot(x="date", y=f"avg_14_day_{topic}",
-                                 hue=hue,
-                                 data=df, ax=axes[i])
-            chart.set_title(f"14 Day Rolling Average {topic}")
+            titles[i] = f"14 Day Rolling Average {topic}"
+            titles[(i + len(topics))] = topic
+        fig = make_subplots(rows=rows, cols=1, subplot_titles=tuple(titles))
 
-            chart = sns.lineplot(x="date", y=topic,
-                                 hue=hue,
-                                 data=df, ax=axes[i + len(topics)])
-            chart.set_title(topic)
+        for i, topic in enumerate(topics, 1):
+            fig = plot_traces(fig,
+                              data=df,
+                              x='date',
+                              y=f"avg_14_day_{topic}",
+                              hue=hue,
+                              row=i, col=1)
+
+            fig = plot_traces(fig,
+                              data=df,
+                              x='date',
+                              y=topic,
+                              hue=hue,
+                              row=(i + len(topics)), col=1)
+
+        fig.update_layout(width=700, height=(300 * rows))
+        return fig
+
+    @staticmethod
+    def _fig_layout(fig):
+        fig.update_layout(
+            xaxis=dict(
+                showline=True,
+                showgrid=False,
+                showticklabels=True,
+                linecolor='rgb(204, 204, 204)',
+                linewidth=2,
+                ticks='outside',
+                tickfont=dict(
+                    family='Arial',
+                    size=12,
+                    color='rgb(82, 82, 82)',
+                ),
+            ),
+            yaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                showline=False,
+                showticklabels=False,
+            ),
+            autosize=False,
+            margin=dict(
+                autoexpand=False,
+                l=100,
+                r=20,
+                t=110,
+            ),
+            showlegend=True,
+            plot_bgcolor='white'
+        )
         return fig
 
     def top_paths_plot(self) -> None:
@@ -88,7 +167,8 @@ class Flow(SankeyFlow):
         top_paths = self._open_sql('top_paths.sql')
         df = client.query(top_paths.format(f"('{self._flow_name}')")).to_dataframe()
         fig = self.time_stats(df, 'nickname', ['count', 'avg_duration'])
-        # return fig
+        fig = self._fig_layout(fig)
+        return fig
 
     def distinct_sessionId_count_plot(self) -> None:
         """ Gets the count of unique sessionIds per day and
@@ -98,11 +178,12 @@ class Flow(SankeyFlow):
         sql = self._open_sql('distinct_sessionId_count.sql')
         df = client.query(sql.format(self._formatted_flow_name())).to_dataframe()
         fig = self.time_stats(df, 'FlowName', ['count'])
-        # return fig
+        fig = self._fig_layout(fig)
+        return fig
 
     def _get_date(self,
-                   date: Optional[Union[str, datetime.date]],
-                   default: datetime.date) -> datetime.date:
+                  date: Optional[Union[str, datetime.date]],
+                  default: datetime.date) -> datetime.date:
         """ takes a date in various formats and returns it or it's default in the format
             datetime.date
 
@@ -134,7 +215,6 @@ class Flow(SankeyFlow):
                                  start_date.strftime('%Y-%m-%d'),
                                  end_date.strftime('%Y-%m-%d'))
         self.master = client.query(query).to_dataframe()
-        print(f"length master: {len(self.master)}")
 
     def create_user_sequence(self,
                              start_date: datetime.date = None,
@@ -151,8 +231,6 @@ class Flow(SankeyFlow):
         df = self.master.copy()
         df = df[df['time_event'] > self._to_datetime(start_date)]
         df = df[df['time_event'] < self._to_datetime(end_date)]
-        print(f"length df: {len(df)}")
-        print(self._to_datetime(start_date), self._to_datetime(end_date))
         return df
 
     @staticmethod
@@ -162,7 +240,8 @@ class Flow(SankeyFlow):
         :param date: date object that needs to be converted
         :return: datetime object that starts at midnight
         """
-        return pytz.utc.localize(datetime.datetime.combine(date, datetime.datetime.min.time())) #.replace(tzinfo='utc')
+        return pytz.utc.localize(
+            datetime.datetime.combine(date, datetime.datetime.min.time()))  # .replace(tzinfo='utc')
 
     def sankey_plot(self,
                     start_date: Optional[Union[str, datetime.date]] = None,
