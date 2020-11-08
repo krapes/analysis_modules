@@ -78,15 +78,15 @@ class Flow(SankeyFlow):
                 This function will take x, y, and hue column names and use them to layer
                 the correct scatter plots together.
 
-            :param fig:
-            :param data:
-            :param x:
-            :param y:
-            :param hue:
-            :param row:
-            :param col:
-            :param mode:
-            :return:
+            :param fig: ploty fig where this plot (or these traces) will be places
+            :param data: dataframe containing all the columns listed in x, y, and hue
+            :param x: column name of x-axis
+            :param y: column name of y-axis
+            :param hue: column name of category column
+            :param row: the row number inside the fig where the plot will be located
+            :param col: the column number inside the fig where the plot
+            :param mode: plotly.graph_objects.Scatter mode value
+            :return: plot fig with plot added s
             """
             for n, category in enumerate(data[hue].unique()):
                 temp = data[data[hue] == category]
