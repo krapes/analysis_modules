@@ -66,6 +66,21 @@ class Flow(SankeyFlow):
         :param topics: metrics that are being plotted (Ex. count, duration, etc)
         :return: Seaborn plot containing a total of 2*len(topics) graphs
         """
+        def plot_traces(fig, data, x, y, hue, row, col, mode: str = 'lines'):
+            for n, category in enumerate(data[hue].unique()):
+                temp = data[data[hue] == category]
+                chart = go.Scatter(x=temp[x],
+                                                y=temp[y],
+                                                mode='lines',
+                                                name=category,
+                                                marker_color=px.colors.sequential.Plasma[n]
+                                                )
+                if n == 0:
+                    fig.append_trace(chart, row=row, col=col)
+                else:
+                    fig.add_trace(chart, row=row, col=col)
+            return fig
+
         rows = 2 * len(topics)
 
         # fig, axes = plt.subplots(nrows=rows, figsize=(15, 7.5 * rows))
@@ -73,24 +88,23 @@ class Flow(SankeyFlow):
         for i, topic in enumerate(topics):
             titles[i] = f"14 Day Rolling Average {topic}"
             titles[(i + len(topics))] = topic
-        print(titles)
         fig = make_subplots(rows=rows, cols=1, subplot_titles=tuple(titles))
 
         for i, topic in enumerate(topics, 1):
-            for n, category in enumerate(df[hue].unique()):
-                temp = df[df[hue] == category]
-                chart = go.Scatter(x=temp["date"],
-                                                y=temp[f"avg_14_day_{topic}"],
-                                                mode='lines',
-                                                name=category,
-                                                marker_color=n
-                                                )
-                if n == 0:
-                    fig.append_trace(chart, row=i, col=1)
-                else:
-                    fig.add_trace(chart, row=i, col=1)
+            fig = plot_traces(fig,
+                              data=df,
+                              x='date',
+                              y=f"avg_14_day_{topic}",
+                              hue=hue,
+                              row=i, col=1)
 
-
+            fig = plot_traces(fig,
+                              data=df,
+                              x='date',
+                              y=topic,
+                              hue=hue,
+                              row=(i + len(topics)), col=1)
+            '''
             fig.append_trace(go.Scatter(x=df["date"],
                                         y=df[topic],
                                         mode='lines',
@@ -98,7 +112,7 @@ class Flow(SankeyFlow):
                                         # title=f"14 Day Rolling Average {topic}"
                                         ),
                              row=(i + len(topics)), col=1)
-
+            '''
             '''
             chart = sns.lineplot(x="date", y=f"avg_14_day_{topic}"
                                  hue=hue,
