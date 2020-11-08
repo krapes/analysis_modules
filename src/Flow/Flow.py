@@ -33,7 +33,6 @@ class Flow(SankeyFlow):
                                                                      .strptime('2020-01-01', '%Y-%m-%d')
                                                                      .date())
         self.end_date = end_date if end_date is not None else datetime.date.today()
-        print(f"Flow {flow_name} successfully created")
 
     def _open_sql(self, filename) -> str:
         """ Opens the file from the SQLs folder in this module and returns
@@ -53,7 +52,6 @@ class Flow(SankeyFlow):
         start, end = self.master['time_event'].min(), self.master['time_event'].max()
         delta_from_start = (end - start) * percentage / 100
         date = (start + delta_from_start).to_pydatetime().date()
-        print(percentage, start, delta_from_start, date)
         return date
 
     @staticmethod
@@ -217,7 +215,6 @@ class Flow(SankeyFlow):
                                  start_date.strftime('%Y-%m-%d'),
                                  end_date.strftime('%Y-%m-%d'))
         self.master = client.query(query).to_dataframe()
-        print(f"length master: {len(self.master)}")
 
     def create_user_sequence(self,
                              start_date: datetime.date = None,
@@ -234,8 +231,6 @@ class Flow(SankeyFlow):
         df = self.master.copy()
         df = df[df['time_event'] > self._to_datetime(start_date)]
         df = df[df['time_event'] < self._to_datetime(end_date)]
-        print(f"length df: {len(df)}")
-        print(self._to_datetime(start_date), self._to_datetime(end_date))
         return df
 
     @staticmethod
