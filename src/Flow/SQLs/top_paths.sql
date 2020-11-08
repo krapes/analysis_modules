@@ -102,3 +102,4 @@ SELECT *,
       AVG(avg_duration) OVER(PARTITION BY nickname ORDER BY date
                  ROWS BETWEEN 14 PRECEDING AND CURRENT ROW) AS avg_14_day_avg_duration
 FROM calc_values
+ORDER BY date

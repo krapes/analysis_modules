@@ -7,6 +7,8 @@ import datetime
 from typing import Tuple, Optional, Union, List
 import plotly.graph_objects as go
 import pytz
+import plotly.express as px
+from plotly.subplots import make_subplots
 
 from src import SankeyFlow
 
@@ -31,6 +33,7 @@ class Flow(SankeyFlow):
                                                                      .strptime('2020-01-01', '%Y-%m-%d')
                                                                      .date())
         self.end_date = end_date if end_date is not None else datetime.date.today()
+        print(f"Flow {flow_name} successfully created")
 
     def _open_sql(self, filename) -> str:
         """ Opens the file from the SQLs folder in this module and returns
@@ -48,7 +51,7 @@ class Flow(SankeyFlow):
         if hasattr(self, 'master') == False:
             self._get_master()
         start, end = self.master['time_event'].min(), self.master['time_event'].max()
-        delta_from_start = (end - start) * percentage/100
+        delta_from_start = (end - start) * percentage / 100
         date = (start + delta_from_start).to_pydatetime().date()
         print(percentage, start, delta_from_start, date)
         return date
@@ -64,10 +67,40 @@ class Flow(SankeyFlow):
         :return: Seaborn plot containing a total of 2*len(topics) graphs
         """
         rows = 2 * len(topics)
-        fig, axes = plt.subplots(nrows=rows, figsize=(15, 7.5 * rows))
 
+        # fig, axes = plt.subplots(nrows=rows, figsize=(15, 7.5 * rows))
+        titles = [""] * rows
         for i, topic in enumerate(topics):
-            chart = sns.lineplot(x="date", y=f"avg_14_day_{topic}",
+            titles[i] = f"14 Day Rolling Average {topic}"
+            titles[(i + len(topics))] = topic
+        print(titles)
+        fig = make_subplots(rows=rows, cols=1, subplot_titles=tuple(titles))
+
+        for i, topic in enumerate(topics, 1):
+            for n, category in enumerate(df[hue].unique()):
+                temp = df[df[hue] == category]
+                chart = go.Scatter(x=temp["date"],
+                                                y=temp[f"avg_14_day_{topic}"],
+                                                mode='lines',
+                                                name=category,
+                                                marker_color=n
+                                                )
+                if n == 0:
+                    fig.append_trace(chart, row=i, col=1)
+                else:
+                    fig.add_trace(chart, row=i, col=1)
+
+
+            fig.append_trace(go.Scatter(x=df["date"],
+                                        y=df[topic],
+                                        mode='lines',
+                                        #marker_color=hue,
+                                        # title=f"14 Day Rolling Average {topic}"
+                                        ),
+                             row=(i + len(topics)), col=1)
+
+            '''
+            chart = sns.lineplot(x="date", y=f"avg_14_day_{topic}"
                                  hue=hue,
                                  data=df, ax=axes[i])
             chart.set_title(f"14 Day Rolling Average {topic}")
@@ -76,6 +109,42 @@ class Flow(SankeyFlow):
                                  hue=hue,
                                  data=df, ax=axes[i + len(topics)])
             chart.set_title(topic)
+            '''
+        fig.update_layout(width=700, height=(300 * rows))
+        return fig
+
+    @staticmethod
+    def _fig_layout(fig):
+        fig.update_layout(
+            xaxis=dict(
+                showline=True,
+                showgrid=False,
+                showticklabels=True,
+                linecolor='rgb(204, 204, 204)',
+                linewidth=2,
+                ticks='outside',
+                tickfont=dict(
+                    family='Arial',
+                    size=12,
+                    color='rgb(82, 82, 82)',
+                ),
+            ),
+            yaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                showline=False,
+                showticklabels=False,
+            ),
+            autosize=False,
+            margin=dict(
+                autoexpand=False,
+                l=100,
+                r=20,
+                t=110,
+            ),
+            showlegend=True,
+            plot_bgcolor='white'
+        )
         return fig
 
     def top_paths_plot(self) -> None:
@@ -88,7 +157,8 @@ class Flow(SankeyFlow):
         top_paths = self._open_sql('top_paths.sql')
         df = client.query(top_paths.format(f"('{self._flow_name}')")).to_dataframe()
         fig = self.time_stats(df, 'nickname', ['count', 'avg_duration'])
-        # return fig
+        fig = self._fig_layout(fig)
+        return fig
 
     def distinct_sessionId_count_plot(self) -> None:
         """ Gets the count of unique sessionIds per day and
@@ -98,11 +168,12 @@ class Flow(SankeyFlow):
         sql = self._open_sql('distinct_sessionId_count.sql')
         df = client.query(sql.format(self._formatted_flow_name())).to_dataframe()
         fig = self.time_stats(df, 'FlowName', ['count'])
-        # return fig
+        fig = self._fig_layout(fig)
+        return fig
 
     def _get_date(self,
-                   date: Optional[Union[str, datetime.date]],
-                   default: datetime.date) -> datetime.date:
+                  date: Optional[Union[str, datetime.date]],
+                  default: datetime.date) -> datetime.date:
         """ takes a date in various formats and returns it or it's default in the format
             datetime.date
 
@@ -162,7 +233,8 @@ class Flow(SankeyFlow):
         :param date: date object that needs to be converted
         :return: datetime object that starts at midnight
         """
-        return pytz.utc.localize(datetime.datetime.combine(date, datetime.datetime.min.time())) #.replace(tzinfo='utc')
+        return pytz.utc.localize(
+            datetime.datetime.combine(date, datetime.datetime.min.time()))  # .replace(tzinfo='utc')
 
     def sankey_plot(self,
                     start_date: Optional[Union[str, datetime.date]] = None,
