@@ -64,9 +64,30 @@ class Flow(SankeyFlow):
         :param df: data containing values to be plotted
         :param hue: column name of category labels
         :param topics: metrics that are being plotted (Ex. count, duration, etc)
-        :return: Seaborn plot containing a total of 2*len(topics) graphs
+        :return: plotly figure containing a total of 2*len(topics) graphs
         """
-        def plot_traces(fig, data, x, y, hue, row, col, mode: str = 'lines'):
+        def plot_traces(fig: go.Figure,
+                        data: pd.DataFrame,
+                        x: str,
+                        y: str,
+                        hue: str,
+                        row: int,
+                        col: int,
+                        mode: str = 'lines') -> go.Figure:
+            """ The goal is create a similar behavior as plotly express or seaborn.
+                This function will take x, y, and hue column names and use them to layer
+                the correct scatter plots together.
+
+            :param fig:
+            :param data:
+            :param x:
+            :param y:
+            :param hue:
+            :param row:
+            :param col:
+            :param mode:
+            :return:
+            """
             for n, category in enumerate(data[hue].unique()):
                 temp = data[data[hue] == category]
                 chart = go.Scatter(x=temp[x],
@@ -75,15 +96,11 @@ class Flow(SankeyFlow):
                                                 name=category,
                                                 marker_color=px.colors.sequential.Plasma[n]
                                                 )
-                if n == 0:
-                    fig.append_trace(chart, row=row, col=col)
-                else:
-                    fig.add_trace(chart, row=row, col=col)
+                fig.add_trace(chart, row=row, col=col)
             return fig
 
         rows = 2 * len(topics)
 
-        # fig, axes = plt.subplots(nrows=rows, figsize=(15, 7.5 * rows))
         titles = [""] * rows
         for i, topic in enumerate(topics):
             titles[i] = f"14 Day Rolling Average {topic}"
@@ -104,26 +121,7 @@ class Flow(SankeyFlow):
                               y=topic,
                               hue=hue,
                               row=(i + len(topics)), col=1)
-            '''
-            fig.append_trace(go.Scatter(x=df["date"],
-                                        y=df[topic],
-                                        mode='lines',
-                                        #marker_color=hue,
-                                        # title=f"14 Day Rolling Average {topic}"
-                                        ),
-                             row=(i + len(topics)), col=1)
-            '''
-            '''
-            chart = sns.lineplot(x="date", y=f"avg_14_day_{topic}"
-                                 hue=hue,
-                                 data=df, ax=axes[i])
-            chart.set_title(f"14 Day Rolling Average {topic}")
 
-            chart = sns.lineplot(x="date", y=topic,
-                                 hue=hue,
-                                 data=df, ax=axes[i + len(topics)])
-            chart.set_title(topic)
-            '''
         fig.update_layout(width=700, height=(300 * rows))
         return fig
 

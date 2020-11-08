@@ -49,6 +49,13 @@ SELECT
 FROM `cosmic-octane-88917.analytics_us._VW_NlpEvent`
 ),
 
+filtered AS (
+SELECT *
+FROM major_events
+WHERE FlowName in {0}
+AND EXTRACT(DATE FROM TimeStamp) BETWEEN '2020-06-01' AND '2020-10-31'
+),
+
 Session_paths AS (
 SELECT DISTINCT SessionId, TimeStamp, FlowName,  Duration, Path
 FROM (
@@ -60,7 +67,7 @@ FROM (
       STRING_AGG(ActionId, ';') OVER(PARTITION BY SessionId, FlowName ORDER BY TimeStamp) AS Path,
       RANK() OVER(PARTITION BY SessionId, FlowName ORDER BY TimeStamp DESC) AS rank
     FROM
-        major_events
+        filtered
        )
 WHERE rank = 1
 ),
