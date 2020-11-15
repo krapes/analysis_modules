@@ -114,7 +114,7 @@ SELECT
        m.FlowName,
        TIMESTAMP_DIFF(m.TimeStamp, m.first_value, SECOND) AS time_from_start,
        TIMESTAMP_DIFF(m.next_value, m.TimeStamp, SECOND) AS time_to_next,
-       t.nickname,
+       t.nickname AS path_nickname,
        1 AS count
 FROM metric_prep m
 INNER JOIN Session_paths USING(SessionId)

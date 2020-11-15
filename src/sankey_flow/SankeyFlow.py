@@ -7,6 +7,7 @@ from scipy import stats
 import datetime
 import logging
 import copy
+import time
 
 import plotly.graph_objects as go
 import chart_studio
@@ -372,11 +373,11 @@ class SankeyFlow:
 
         return fig
 
-    def genSankey(self,
-                  df,
-                  cat_cols=['event_name', 'next_event'],
-                  value_cols=['count', 'time_from_start'],
-                  title='Sankey Diagram'):
+    def build_sourceTargetDf(self,
+                             df,
+                             cat_cols=['event_name', 'next_event'],
+                             value_cols=['count', 'time_from_start'],
+                             color_col=['color']):
         # maximum of 6 value cols -> 6 colors
         colorPalette = ['#4B8BBE', '#306998', '#FFE873', '#FFD43B', '#646464']
         labelList = []
@@ -397,14 +398,14 @@ class SankeyFlow:
         # transform df into a source-target pair
         for i in range(len(cat_cols) - 1):
             if i == 0:
-                sourceTargetDf = df[cat_cols + value_cols]
-                sourceTargetDf.columns = ['source', 'target', 'count', 'time_from_start']
+                sourceTargetDf = df[cat_cols + value_cols + color_col]
+                sourceTargetDf.columns = ['source', 'target'] + value_cols + color_col
             else:
                 tempDf = df[[cat_cols[i], cat_cols[i + 1], value_cols]]
                 tempDf.columns = ['source', 'target', 'count']
                 sourceTargetDf = pd.concat([sourceTargetDf, tempDf])
             sourceTargetDf = (sourceTargetDf
-                              .groupby(['source', 'target'])
+                              .groupby(['source', 'target'] + color_col)
                               .agg({'count': 'sum', 'time_from_start': 'mean'})
                               .reset_index())
 
@@ -412,6 +413,54 @@ class SankeyFlow:
         sourceTargetDf['sourceID'] = sourceTargetDf['source'].apply(lambda x: labelList.index(x))
         sourceTargetDf['targetID'] = sourceTargetDf['target'].apply(lambda x: labelList.index(x))
 
+        return labelList, colorList, sourceTargetDf
+
+    def genSankey(self,
+                  sourceTargetDf,
+                  labelList,
+                  colorList,
+                  colored_path,
+                  threshold=0,
+                  title='Sankey Diagram'):
+        '''
+        # maximum of 6 value cols -> 6 colors
+        colorPalette = ['#4B8BBE', '#306998', '#FFE873', '#FFD43B', '#646464']
+        labelList = []
+        colorNumList = []
+        for catCol in cat_cols:
+            labelListTemp = list(set(df[catCol].values))
+            colorNumList.append(len(labelListTemp))
+            labelList = labelList + labelListTemp
+
+        # remove duplicates from labelList
+        labelList = list(dict.fromkeys(labelList))
+
+        # define colors based on number of levels
+        colorList = []
+        for idx, colorNum in enumerate(colorNumList):
+            colorList = colorList + [colorPalette[idx]] * colorNum
+
+        # transform df into a source-target pair
+        for i in range(len(cat_cols) - 1):
+            if i == 0:
+                sourceTargetDf = df[cat_cols + value_cols + color_col]
+                sourceTargetDf.columns = ['source', 'target'] + value_cols + ['color']
+            else:
+                tempDf = df[[cat_cols[i], cat_cols[i + 1], value_cols]]
+                tempDf.columns = ['source', 'target', 'count']
+                sourceTargetDf = pd.concat([sourceTargetDf, tempDf])
+            sourceTargetDf = (sourceTargetDf
+                              .groupby(['source', 'target', 'color'])
+                              .agg({'count': 'sum', 'time_from_start': 'mean'})
+                              .reset_index())
+
+        # add index for source-target pair
+        sourceTargetDf['sourceID'] = sourceTargetDf['source'].apply(lambda x: labelList.index(x))
+        sourceTargetDf['targetID'] = sourceTargetDf['target'].apply(lambda x: labelList.index(x))
+        '''
+        sourceTargetDf['color'] = '#808080'
+        sourceTargetDf.loc[sourceTargetDf['path_nickname'] == colored_path, 'color'] = '#ed7953'
+        sourceTargetDf = sourceTargetDf[sourceTargetDf['count'] >= threshold]
         # creating the sankey diagram
         data = dict(
             type='sankey',
@@ -429,6 +478,7 @@ class SankeyFlow:
                 source=sourceTargetDf['sourceID'],
                 target=sourceTargetDf['targetID'],
                 value=sourceTargetDf['count'],
+                color=sourceTargetDf['color'],
                 label=sourceTargetDf['time_from_start'],
                 hovertemplate='%{value} unique users went from %{source.label} to %{target.label}.<br />' +
                               '<br />It took them %{label} on average from the start of the flow to finish ' +
@@ -456,26 +506,38 @@ class SankeyFlow:
             raise Exception("SanKeyFlow self._data cannot be None or len zero")
 
         self.title = title
-        palette = self._get_palette(self.default_palette, (self._data.event_name.unique()))
+        #palette = self._get_palette(self.default_palette, (self._data.event_name.unique()))
         data = self._data.copy()
 
         # data = self.index_user_events(data)
         # data = self._convert_datetimes(data)
         # data = self._format_df(data)
 
-        nodes_dict = self._build_node_dict(data, palette)
-        data = self._build_link_dict(data, nodes_dict)
-        self.nodes_dict = nodes_dict
+        #nodes_dict = self._build_node_dict(data, palette)
+        #data = self._build_link_dict(data, nodes_dict)
+        #self.nodes_dict = nodes_dict
         # self.links_dict = links_dict
 
-        output = dict()
-        output['nodes_dict'] = nodes_dict
+        #output = dict()
+        #output['nodes_dict'] = nodes_dict
         # output['links_dict'] = self.trim_links(threshold)
 
         # fig = self._create_figure(output, title)
         # fig = self._create_figure_w_df(data, output, title)
-        data.loc[:, 'count'] = 1
-        fig = self.genSankey(data)
+        #data['color'] = '#9c179e'
+        #data.loc[data['path_nickname'] == '2-Path_Freq_Rank', 'color'] = '#ed7953'
+        print("Starting genSankey")
+        start_time = time.time()
+        self.labelList, self.colorList, self.sourceTargetDf = self.build_sourceTargetDf(data,
+                                                                                        color_col=['path_nickname'])
+        fig = self.genSankey(
+                  self.sourceTargetDf,
+                  self.labelList,
+                  self.colorList,
+                  '1-Path_Freq_Rank',
+                  threshold=0,
+                  title=self.title)
+        print(f"Finished in {round((time.time() - start_time)*60, 2)}")
 
         return fig
 
@@ -484,10 +546,12 @@ class SankeyFlow:
         if self.title is None:
             raise Exception("Method 'plot' needs to be run before modify_threshold")
 
-        output = dict()
-        output['nodes_dict'] = self.nodes_dict
-        output['links_dict'] = self.trim_links(threshold)
-
-        fig = self._create_figure(output, self.title)
+        fig = self.genSankey(
+                            self.sourceTargetDf,
+                            self.labelList,
+                            self.colorList,
+                            '1-Path_Freq_Rank',
+                            threshold=threshold,
+                            title=self.title)
 
         return fig
