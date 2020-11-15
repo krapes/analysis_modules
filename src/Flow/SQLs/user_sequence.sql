@@ -73,16 +73,52 @@ SELECT
 
 FROM
 filtered
+),
+
+
+Session_paths AS (
+SELECT DISTINCT SessionId, TimeStamp, FlowName,  Duration, Path
+FROM (
+    SELECT
+      SessionId,
+      FlowName,
+      FIRST_VALUE(TimeStamp) OVER(PARTITION BY SessionId, FlowName ORDER BY TimeStamp) AS TimeStamp,
+      TIMESTAMP_DIFF(TimeStamp, FIRST_VALUE(TimeStamp) OVER(PARTITION BY SessionId, FlowName ORDER BY TimeStamp), SECOND) AS Duration,
+      STRING_AGG(ActionId, ';') OVER(PARTITION BY SessionId, FlowName ORDER BY TimeStamp) AS Path,
+      RANK() OVER(PARTITION BY SessionId, FlowName ORDER BY TimeStamp DESC) AS rank
+    FROM
+        filtered
+       )
+WHERE rank = 1
+),
+
+top_10 AS (
+SELECT *,
+      CONCAT(ROW_NUMBER() OVER(), '-Path_Freq_Rank') AS nickname
+FROM (
+      SELECT
+        Path,
+        COUNT(TimeStamp) count
+      FROM Session_paths
+      GROUP BY Path
+      ORDER BY count DESC
+      )
 )
 
 SELECT
-       SessionId AS user_id,
-       ActionId  AS event_name,
-       TimeStamp AS time_event,
-       rank_event,
-       next_event,
-       FlowName,
-       TIMESTAMP_DIFF(TimeStamp, first_value, SECOND) AS time_from_start,
-       TIMESTAMP_DIFF(next_value, TimeStamp, SECOND) AS time_to_next
-FROM metric_prep
+       m.SessionId AS user_id,
+       m.ActionId  AS event_name,
+       m.TimeStamp AS time_event,
+       m.rank_event,
+       m.next_event,
+       m.FlowName,
+       TIMESTAMP_DIFF(m.TimeStamp, m.first_value, SECOND) AS time_from_start,
+       TIMESTAMP_DIFF(m.next_value, m.TimeStamp, SECOND) AS time_to_next,
+       t.nickname AS path_nickname,
+       1 AS count
+FROM metric_prep m
+INNER JOIN Session_paths USING(SessionId)
+INNER JOIN top_10 t USING(Path)
 ORDER BY user_id, time_event
+
+
