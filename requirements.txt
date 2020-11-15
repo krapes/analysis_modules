@@ -33,9 +33,6 @@ grpcio==1.33.1
 gunicorn==20.0.4
 httplib2==0.18.1
 idna==2.10
-ipykernel==5.3.4
-ipython==7.18.1
-ipython-genutils==0.2.0
 itsdangerous==1.1.0
 jedi==0.17.2
 Jinja2==2.11.2
