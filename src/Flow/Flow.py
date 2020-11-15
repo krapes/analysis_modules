@@ -297,6 +297,7 @@ class Flow(SankeyFlow):
         :param path_nickname: name of path to be extracted and plotted
         :return: Sankey figure
         """
+        '''
         path_session_ids_query = self._open_sql('path_session_ids.sql')
         path_session_ids_query = path_session_ids_query.format(self._formatted_flow_name(),
                                                                path_nickname)
@@ -304,4 +305,6 @@ class Flow(SankeyFlow):
         data = self.create_user_sequence()
         data = data[data['user_id'].isin(path_session_ids)]
         fig = self.sankey_plot(title=f"User Path of {path_nickname}", data=data)
+        '''
+
         return fig
