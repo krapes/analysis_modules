@@ -58,7 +58,7 @@ class Flow(SankeyFlow):
     def time_stats(df: pd.DataFrame,
                    hue: str,
                    topics: Dict[str, int],
-                   dates: Tuple(datetime.date, datetime.date) = None) -> plt.Figure:
+                   dates: Tuple[datetime.date, datetime.date] = None) -> plt.Figure:
         """Returns two line plots for every topic. The first containing a 14 day rolling
             average, the second containing the daily average.
 
@@ -117,6 +117,7 @@ class Flow(SankeyFlow):
                               hue=hue,
                               row=1, col=topics[topic])
             y_max = df[f"avg_14_day_{topic}"].max()
+
             fig.add_trace(go.Scatter(x=[dates[0], dates[1]], y=[y_max, y_max], fill='tozeroy'),
                           row=1, col=topics[topic])
             fig = plot_traces(fig,
@@ -127,7 +128,7 @@ class Flow(SankeyFlow):
                               row=2, col=topics[topic])
             y_max = df[topic].max()
             fig.add_trace(go.Scatter(x=[dates[0], dates[1]], y=[y_max, y_max], fill='tozeroy'),
-                          row=1, col=topics[topic])
+                          row=2, col=topics[topic])
 
         fig.update_layout(width=700, height=(300 * rows))
         return fig
@@ -175,7 +176,10 @@ class Flow(SankeyFlow):
         """
         top_paths = self._open_sql('top_paths.sql')
         df = client.query(top_paths.format(f"('{self._flow_name}')")).to_dataframe()
-        fig = self.time_stats(df, 'nickname', {'count': 1, 'avg_duration': 2})
+        fig = self.time_stats(df,
+                              'nickname',
+                              {'count': 1, 'avg_duration': 2},
+                              (self.start_date, self.end_date))
         fig = self._fig_layout(fig)
         return fig
 
@@ -186,7 +190,7 @@ class Flow(SankeyFlow):
         """
         sql = self._open_sql('distinct_sessionId_count.sql')
         df = client.query(sql.format(self._formatted_flow_name())).to_dataframe()
-        fig = self.time_stats(df, 'FlowName', {'count': 1})
+        fig = self.time_stats(df, 'FlowName', {'count': 1}, (self.start_date, self.end_date))
         fig = self._fig_layout(fig)
         return fig
 
@@ -208,7 +212,6 @@ class Flow(SankeyFlow):
             pass
         else:
             raise Exception(f"Value date need to be type str or datetime.date found {type(date)}")
-
         return date
 
     def _formatted_flow_name(self):
@@ -238,8 +241,10 @@ class Flow(SankeyFlow):
             self._get_master()
 
         df = self.master.copy()
-        df = df[df['time_event'] > self._to_datetime(start_date)]
-        df = df[df['time_event'] < self._to_datetime(end_date)]
+        if start_date is not None:
+            df = df[df['time_event'] > self._to_datetime(start_date)]
+        if end_date is not None:
+            df = df[df['time_event'] < self._to_datetime(end_date)]
         return df
 
     @staticmethod
@@ -249,6 +254,7 @@ class Flow(SankeyFlow):
         :param date: date object that needs to be converted
         :return: datetime object that starts at midnight
         """
+        print(date)
         return pytz.utc.localize(
             datetime.datetime.combine(date, datetime.datetime.min.time()))  # .replace(tzinfo='utc')
 
@@ -296,8 +302,6 @@ class Flow(SankeyFlow):
                                                                path_nickname)
         path_session_ids = client.query(path_session_ids_query).to_dataframe().SessionId.to_list()
         data = self.create_user_sequence()
-        print(f"DATA LENGTH {len(data)}")
         data = data[data['user_id'].isin(path_session_ids)]
-        print(f"DATA LENGTH {len(data)}")
         fig = self.sankey_plot(title=f"User Path of {path_nickname}", data=data)
         return fig
