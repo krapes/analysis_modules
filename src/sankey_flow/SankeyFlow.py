@@ -16,7 +16,7 @@ class SankeyFlow:
                        'BFD6DE', '3E5066', '353A3E', 'E6E6E6']
     title = None
     path_highlight = None
-    threshold = 0
+    _threshold = 0
 
     def __init__(self, data: pd.DataFrame = None, palette: list = None) -> None:
         self._data = data
@@ -30,6 +30,21 @@ class SankeyFlow:
     @data.setter
     def data(self, value: pd.DataFrame) -> None:
         self._data = value
+
+    @property
+    def threshold(self) -> pd.DataFrame:
+        """ Sequence data used for creating the plot
+        """
+        return self._threshold
+
+    @threshold.setter
+    def threshold(self, value: int) -> None:
+        if hasattr(self, 'sourceTargetDf') == False:
+            self._threshold = value
+        else:
+            print(f"max links {self.sourceTargetDf['count'].max()}")
+            self._threshold = int(self.sourceTargetDf['count'].max() * (value/100))
+        print(f"threshold set to {self._threshold} by parameter {value}")
 
     def build_sourceTargetDf(self,
                              df,
@@ -80,7 +95,7 @@ class SankeyFlow:
                   colored_path,
                   threshold=0,
                   title='Sankey Diagram'):
-
+        print(f"plotting parameters {threshold}   {colored_path}")
         sourceTargetDf['color'] = '#808080'
         if colored_path is not None:
             sourceTargetDf.loc[sourceTargetDf['path_nickname'] == colored_path, 'color'] = '#ed7953'
@@ -104,8 +119,10 @@ class SankeyFlow:
                 value=sourceTargetDf['count'],
                 color=sourceTargetDf['color'],
                 label=sourceTargetDf['time_from_start'],
+                customdata=sourceTargetDf['path_nickname'],
                 hovertemplate='%{value} unique users went from %{source.label} to %{target.label}.<br />' +
-                              '<br />It took them %{label} on average from the start of the flow to finish ' +
+                              'on path %{customdata} ' +
+                              '<br />It took them %{label} seconds on average from the start of the flow to finish ' +
                               'event %{target.label}.<extra></extra>'
             )
         )
@@ -140,7 +157,7 @@ class SankeyFlow:
                   self.labelList,
                   self.colorList,
                   self.path_highlight,
-                  threshold=self.threshold,
+                  threshold=self._threshold,
                   title=self.title)
         print(f"Finished in {round((time.time() - start_time)*60, 2)}")
 
@@ -150,7 +167,7 @@ class SankeyFlow:
 
         if self.title is None:
             raise Exception("Method 'plot' needs to be run before modify_threshold")
-        self.threshold = threshold
+        self._threshold = threshold
         fig = self.genSankey(
                             self.sourceTargetDf,
                             self.labelList,
@@ -171,7 +188,7 @@ class SankeyFlow:
                             self.labelList,
                             self.colorList,
                             self.path_highlight,
-                            threshold=self.threshold,
+                            threshold=self._threshold,
                             title=self.title)
 
         return fig

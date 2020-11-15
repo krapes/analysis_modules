@@ -41,7 +41,7 @@ app.layout = html.Div(children=[
                         dcc.Slider(
                             id='threshold_slider',
                             min=0,
-                            max=10,
+                            max=100,
                             value=10,
                             step=1,
                             vertical=True
@@ -71,8 +71,7 @@ app.layout = html.Div(children=[
                                         {'label': '10-Path_Freq_Rank', 'value': '10-Path_Freq_Rank'},
                                     ],
                                     value='1-Path_Freq_Rank'
-                                ) , width=3),
-             dbc.Col(dcc.Graph(id='individual_path'), width=9)])
+                                ), width=3)])
 
 ])
 
@@ -80,8 +79,6 @@ app.layout = html.Div(children=[
     [Output('sankey', 'figure'),
      Output('paths_time', 'figure'),
      Output('totals_time', 'figure'),
-     Output('individual_path', 'figure'),
-     Output('threshold_slider', component_property='max'),
      Output('flow_name', 'children'),
      Output('date_range', 'children')],
     [Input('threshold_slider', 'value'),
@@ -99,14 +96,26 @@ def update_figure(threshold, flow_name, date_range, path_name):
         print("Plot not found, starting compute...")
         flow = Flow(flow_name=flow_name)
         print("New plot computed")
-    flow.start_date, flow.end_date = flow.date_at_percent(date_range[0]), flow.date_at_percent(date_range[1])
+    new_start_date, new_end_date = flow.date_at_percent(date_range[0]), flow.date_at_percent(date_range[1])
     date_range = f"Showing Sessions from {flow.start_date} to {flow.end_date}"
-    fig_sankey = flow.sankey_plot()
+    if flow_name == flow._flow_name and new_start_date == flow.start_date and new_end_date == flow.end_date:
+        flow.threshold = threshold
+        flow.path_highlight = path_name
+        fig_sankey = flow.sankey_modify_path_highlight(path_name)
+    elif flow_name == flow._flow_name:
+        flow.start_date = new_start_date
+        flow.end_date = new_end_date
+        flow.threshold = threshold
+        flow.path_highlight = path_name
+        fig_sankey = flow.sankey_plot()
+    else:
+        flow = Flow(flow_name=flow_name, start_date=new_start_date, end_date=new_end_date)
+        flow.threshold = threshold
+        flow.path_highlight = path_name
+        fig_sankey = flow.sankey_plot()
     fig_totals_time = flow.distinct_sessionId_count_plot()
     fig_paths_time = flow.top_paths_plot()
-    max_links = 0 #flow.sankey_max_links()
-    fig_path_isolated = flow.sankey_plot_of_path(path_name)
-    return fig_sankey, fig_paths_time, fig_totals_time, fig_path_isolated, max_links, flow_name, date_range
+    return fig_sankey, fig_paths_time, fig_totals_time, flow_name, date_range
 
 
 if __name__ == '__main__':

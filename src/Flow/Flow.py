@@ -279,6 +279,7 @@ class Flow(SankeyFlow):
         if data is not None:
             self._data = data
         else:
+            print("resetting datess")
             self._data = self.create_user_sequence(start_date, end_date)
         # TODO reinstate date selection
         '''
@@ -291,20 +292,3 @@ class Flow(SankeyFlow):
         fig = self.plot(threshold, title)
         return fig
 
-    def sankey_plot_of_path(self, path_nickname):
-        """ creates a sankey plot of only the path path_nickname
-
-        :param path_nickname: name of path to be extracted and plotted
-        :return: Sankey figure
-        """
-        '''
-        path_session_ids_query = self._open_sql('path_session_ids.sql')
-        path_session_ids_query = path_session_ids_query.format(self._formatted_flow_name(),
-                                                               path_nickname)
-        path_session_ids = client.query(path_session_ids_query).to_dataframe().SessionId.to_list()
-        data = self.create_user_sequence()
-        data = data[data['user_id'].isin(path_session_ids)]
-        fig = self.sankey_plot(title=f"User Path of {path_nickname}", data=data)
-        '''
-
-        return fig
