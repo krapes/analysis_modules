@@ -28,36 +28,12 @@ fig = flow.sankey_plot()
 
 app.layout = html.Div(children=[
     dbc.Row(dbc.Col(html.H1(children=f'SharkNinja'))),
-    dbc.Row(dbc.Col(dcc.Dropdown(
+    dbc.Row([dbc.Col(dcc.Dropdown(
                 id='available_flows',
                 options=[{'label': i, 'value': i} for i in AVAILABLE_FLOWS],
                 value=AVAILABLE_FLOWS[0]
-            ), width=3)),
-    dbc.Row(dbc.Col(html.H1(id='flow_name'))),
-    dbc.Row(
-            [
-                dbc.Col(dcc.Graph(id='sankey'), width=11),
-                dbc.Col([html.Label('Threshold'),
-                        dcc.Slider(
-                            id='threshold_slider',
-                            min=0,
-                            max=100,
-                            value=10,
-                            step=1,
-                            vertical=True
-                        )])
-            ]),
-    dbc.Row([dbc.Col(dcc.Graph(id='paths_time'), width=6),
-             dbc.Col([dcc.Graph(id='totals_time'),
-                      html.H4(id='date_range'),
-                      dcc.RangeSlider(
-                                        id='date_slider',
-                                        min=0,
-                                        max=100,
-                                        value=[0, 100],
-                                        step=5,
-                                    )], width=6)]),
-    dbc.Row([dbc.Col(dcc.Dropdown(id='path_name',
+            ), width=3),
+        dbc.Col(dcc.Dropdown(id='path_name',
                                     options=[
                                         {'label': '1-Path_Freq_Rank', 'value': '1-Path_Freq_Rank'},
                                         {'label': '2-Path_Freq_Rank', 'value': '2-Path_Freq_Rank'},
@@ -71,7 +47,31 @@ app.layout = html.Div(children=[
                                         {'label': '10-Path_Freq_Rank', 'value': '10-Path_Freq_Rank'},
                                     ],
                                     value='1-Path_Freq_Rank'
-                                ), width=3)])
+                                ), width=3)]),
+    dbc.Row(dbc.Col(html.H1(id='flow_name'))),
+    dbc.Row(
+            [dbc.Col(dcc.Graph(id='paths_time'), width=5),
+                dbc.Col(dcc.Graph(id='sankey'), width=6),
+                dbc.Col([html.Label('Threshold'),
+                        dcc.Slider(
+                            id='threshold_slider',
+                            min=0,
+                            max=100,
+                            value=10,
+                            step=1,
+                            vertical=True
+                        )])
+            ]),
+    dbc.Row([
+             dbc.Col([dcc.Graph(id='totals_time'),
+                      html.H4(id='date_range'),
+                      dcc.RangeSlider(
+                                        id='date_slider',
+                                        min=0,
+                                        max=100,
+                                        value=[0, 100],
+                                        step=5,
+                                    )], width=10, align="center")])
 
 ])
 
@@ -88,14 +88,6 @@ app.layout = html.Div(children=[
 def update_figure(threshold, flow_name, date_range, path_name):
     print(f"threshold: {threshold} flow_name: {flow_name} date_range: {date_range} path_name: {path_name}")
     global flow
-    try:
-        if flow_name != flow._flow_name:
-            raise Exception
-        fig_sankey = flow.sankey_modify_threshold(threshold)
-    except:
-        print("Plot not found, starting compute...")
-        flow = Flow(flow_name=flow_name)
-        print("New plot computed")
     new_start_date, new_end_date = flow.date_at_percent(date_range[0]), flow.date_at_percent(date_range[1])
     date_range = f"Showing Sessions from {flow.start_date} to {flow.end_date}"
     if flow_name == flow._flow_name and new_start_date == flow.start_date and new_end_date == flow.end_date:

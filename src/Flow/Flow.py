@@ -155,7 +155,7 @@ class Flow(SankeyFlow):
                 showline=False,
                 showticklabels=False,
             ),
-            autosize=False,
+            autosize=True,
             margin=dict(
                 autoexpand=False,
                 l=100,
@@ -174,6 +174,7 @@ class Flow(SankeyFlow):
         :return: 4 Seaborn line plots containing distinct sessionId counts and
         average call duration
         """
+        # TODO make top_paths_names match
         top_paths = self._open_sql('top_paths.sql')
         df = client.query(top_paths.format(f"('{self._flow_name}')")).to_dataframe()
         fig = self.time_stats(df,
