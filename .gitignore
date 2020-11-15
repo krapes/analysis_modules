@@ -153,4 +153,9 @@ dmypy.json
 # profiling data
 .prof
 
+# heroku
+*.pyc
+.DS_Store
+.env
+
 # End of https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks
