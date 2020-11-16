@@ -15,7 +15,7 @@ class SankeyFlow:
     default_palette = ['50BE97', 'E4655C', 'FCC865',
                        'BFD6DE', '3E5066', '353A3E', 'E6E6E6']
     title = None
-    path_highlight = None
+    path_highlight = '1-Path_Freq_Rank'
     _threshold = 0
 
     def __init__(self, data: pd.DataFrame = None, palette: list = None) -> None:
