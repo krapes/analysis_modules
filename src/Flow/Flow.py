@@ -278,9 +278,8 @@ class Flow(SankeyFlow):
         """
         start_date, end_date = self._get_date(start_date, self.start_date), self._get_date(end_date, self.end_date)
         if data is not None:
-            self._data = data
+            self._data = data''
         else:
-            print("resetting datess")
             self._data = self.create_user_sequence(start_date, end_date)
         # TODO reinstate date selection
         '''
