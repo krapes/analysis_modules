@@ -228,6 +228,7 @@ class Flow(SankeyFlow):
                                  start_date.strftime('%Y-%m-%d'),
                                  end_date.strftime('%Y-%m-%d'))
         self.master = client.query(query).to_dataframe()
+        print("Master Dataset Gathered")
 
     def create_user_sequence(self,
                              start_date: datetime.date = None,
@@ -278,7 +279,7 @@ class Flow(SankeyFlow):
         """
         start_date, end_date = self._get_date(start_date, self.start_date), self._get_date(end_date, self.end_date)
         if data is not None:
-            self._data = data''
+            self._data = data
         else:
             self._data = self.create_user_sequence(start_date, end_date)
         # TODO reinstate date selection

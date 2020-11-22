@@ -58,6 +58,7 @@ FROM major_events
 WHERE
 FlowName in {0}
 AND EXTRACT(DATE FROM TimeStamp) BETWEEN '{1}' AND '{2}'
+LIMIT 100000
 ),
 
 callback_subset AS (
@@ -135,9 +136,8 @@ FROM (
       GROUP BY Path
       ORDER BY count DESC
       )
-),
+)
 
-final AS (
 SELECT
        m.SessionId AS user_id,
        m.ActionId  AS event_name,
@@ -151,17 +151,14 @@ SELECT
        1 AS count,
        CASE WHEN cb1.first_session_id IS NOT NULL THEN 1
             WHEN cb2.second_session_id IS NOT NULL THEN 2
-       ELSE NULL END AS callback_route
+       ELSE NULL END AS callback_route,
+       cb1.CallingNumber calling_number
 FROM metric_prep m
 INNER JOIN Session_paths USING(SessionId)
 INNER JOIN top_10 t USING(Path)
 LEFT JOIN callbacks cb1 ON m.SessionId=cb1.first_session_id
 LEFT JOIN callbacks cb2 ON m.SessionId=cb2.second_session_id
 ORDER BY user_id, time_event
-)
 
-SELECT callback_route, count(DISTINCT user_id)
-FROM final
-GROUP BY callback_route
 
 
