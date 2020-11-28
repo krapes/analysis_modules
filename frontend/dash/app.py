@@ -25,8 +25,6 @@ global flow
 flow = Flow(flow_name=AVAILABLE_FLOWS[0])
 fig = flow.sankey_plot()
 
-
-
 app.layout = html.Div(children=[
     dbc.Row(dbc.Col(html.H1(children=f'SharkNinja'))),
     dbc.Row([dbc.Col(dcc.Dropdown(
