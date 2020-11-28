@@ -10,13 +10,27 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import time
 from anycache import anycache
+import json
+from google.oauth2 import service_account
 
 from src import SankeyFlow
 
 # credential_path = "/home/kerri/bigquery-jaya-consultant-cosmic-octane-88917-c46ba9b53a3b.json"
 
+# the json credentials stored as env variable
+json_str = os.environ.get('GOOGLE_CREDENTIALS')
+
+# generate json - if there are errors here remove newlines in .env
+json_data = json.loads(json_str)
+# the private_key needs to replace \n parsed as string literal with escaped newlines
+json_data['private_key'] = json_data['private_key'].replace('\\n', '\n')
+
+# use service_account to generate credentials object
+credentials = service_account.Credentials.from_service_account_info(
+    json_data)
+
 project_id = 'cosmic-octane-88917'
-client = bigquery.Client(project=project_id)
+client = bigquery.Client(project=project_id, credentials=credentials)
 
 
 class Flow(SankeyFlow):
