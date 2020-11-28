@@ -1,14 +1,15 @@
 import os
 from google.cloud import bigquery
 import matplotlib.pyplot as plt
-import seaborn as sns
 import pandas as pd
 import datetime
-from typing import Tuple, Optional, Union, List, Dict
+from typing import Tuple, Optional, Union, List, Dict, Any
 import plotly.graph_objects as go
 import pytz
 import plotly.express as px
 from plotly.subplots import make_subplots
+import time
+from anycache import anycache
 
 from src import SankeyFlow
 
@@ -34,7 +35,7 @@ class Flow(SankeyFlow):
                                                                      .date())
         self.end_date = end_date if end_date is not None else datetime.date.today()
 
-    def _open_sql(self, filename) -> str:
+    def _open_sql(self, filename: str) -> str:
         """ Opens the file from the SQLs folder in this module and returns
             it as a string
 
@@ -46,7 +47,18 @@ class Flow(SankeyFlow):
             file_content = f.read()
         return file_content
 
-    def date_at_percent(self, percentage):
+    def date_at_percent(self, percentage: int):
+        """ Given an int that represents a percentage from zero to 100 the function returns
+        the date that represents percentage of the total timeline for the dataset
+        Example: minimum date in dataset == January 1st, Maximum date in dataset == December 31st
+        percentage: 50 --> function returns July 1st
+
+        :param percentage: desired point on the timeline
+        :return: date at desired point on the timeline
+        """
+        if percentage < 0 or percentage > 100:
+            raise Exception("percentage must be between 0 and 100")
+
         if hasattr(self, 'master') == False:
             self._get_master()
         start, end = self.master['time_event'].min(), self.master['time_event'].max()
@@ -134,7 +146,12 @@ class Flow(SankeyFlow):
         return fig
 
     @staticmethod
-    def _fig_layout(fig):
+    def _fig_layout(fig: go.Figure) -> go.Figure:
+        """ Modify the figure to match the desired style
+
+        :param fig: figure to be formatted
+        :return: formatted figure
+        """
         fig.update_layout(
             xaxis=dict(
                 showline=True,
@@ -221,14 +238,38 @@ class Flow(SankeyFlow):
         """
         return f"('{self._flow_name}')"
 
+
+    @staticmethod
+    @anycache(cachedir=os.path.join(dir_path, 'data/anycache.my'))
+    def query_db(query: str, flow_name: str, start_date: str, end_date: str) -> pd.DataFrame:
+        """ Get source data from Bigquery
+
+        :param query: .sql that should be run
+        :param flow_name: name of flow or flows that should be inserted into query
+        :param start_date: date that should be inserted into query
+        :param end_date: date that should be inserted into query
+        :return: dataframe containing results of query
+        """
+        print("Starting Query")
+        query = query.format(flow_name,
+                             start_date,
+                             end_date)
+        return client.query(query).to_dataframe()
+
     def _get_master(self):
+        """ Get the global dataset that will be used for all calculations inside
+        this instance of the class
+
+        :return: None
+        """
+        start_time = time.time()
         start_date, end_date = self._get_date(None, self.start_date), self._get_date(None, self.end_date)
-        top_paths = self._open_sql('user_sequence.sql')
-        query = top_paths.format(self._formatted_flow_name(),
-                                 start_date.strftime('%Y-%m-%d'),
-                                 end_date.strftime('%Y-%m-%d'))
-        self.master = client.query(query).to_dataframe()
-        print("Master Dataset Gathered")
+        query = self._open_sql('user_sequence.sql')
+        self.master = self.query_db(query,
+                                    self._formatted_flow_name(),
+                                    start_date.strftime('%Y-%m-%d'),
+                                    end_date.strftime('%Y-%m-%d'))
+        print(f"Master Dataset Gathered in {round(time.time() - start_time, 0)} seconds")
 
     def create_user_sequence(self,
                              start_date: datetime.date = None,
@@ -250,13 +291,12 @@ class Flow(SankeyFlow):
         return df
 
     @staticmethod
-    def _to_datetime(date):
+    def _to_datetime(date: datetime.date) -> datetime.datetime:
         """ Converts a date object to a datetime object with time of midnight
 
         :param date: date object that needs to be converted
         :return: datetime object that starts at midnight
         """
-        print(date)
         return pytz.utc.localize(
             datetime.datetime.combine(date, datetime.datetime.min.time()))  # .replace(tzinfo='utc')
 
