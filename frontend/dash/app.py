@@ -108,6 +108,5 @@ def update_figure(threshold, flow_name, date_range, path_name):
     fig_paths_time = flow.top_paths_plot()
     return fig_sankey, fig_paths_time, fig_totals_time, flow_name, date_range
 
-
 if __name__ == '__main__':
     app.run_server(debug=True)
