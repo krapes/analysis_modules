@@ -222,8 +222,8 @@ class Flow(SankeyFlow):
                            'date': path_metrics['date'],
                            'avg_duration': path_metrics['session_duration']['mean'],
                            'count': path_metrics['count']['sum']})
-        df['avg_14_day_avg_duration'] = df.avg_duration.rolling(14).mean()
-        df['avg_14_day_count'] = df.avg_duration.rolling(14).mean()
+        df['avg_14_day_avg_duration'] = df['avg_duration'].rolling(14).mean()
+        df['avg_14_day_count'] = df['count'].rolling(14).mean()
         fig = self.time_stats(df,
                               'path_nickname',
                               {'count': 1, 'avg_duration': 2},
@@ -236,8 +236,18 @@ class Flow(SankeyFlow):
 
         :return: two plots containing unique sessionId count and the 14 day rolling average
         """
-        sql = self._open_sql('distinct_sessionId_count.sql')
-        df = client.query(sql.format(self._formatted_flow_name())).to_dataframe()
+
+        if hasattr(self, 'master') == False:
+            self._get_master()
+        df = self.master.copy()
+        df['date'] = df.time_event.dt.date
+        path_metrics = df.groupby(['date', 'FlowName']).agg({'count': ['sum']},
+                                                            as_index=False).reset_index()
+        df = pd.DataFrame({'FlowName': path_metrics['FlowName'],
+                           'date': path_metrics['date'],
+                           'count': path_metrics['count']['sum']})
+
+        df['avg_14_day_count'] = df['count'].rolling(14).mean()
         fig = self.time_stats(df, 'FlowName', {'count': 1}, (self.start_date, self.end_date))
         fig = self._fig_layout(fig)
         return fig
