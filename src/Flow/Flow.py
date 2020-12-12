@@ -16,21 +16,25 @@ from google.oauth2 import service_account
 from src import SankeyFlow
 
 # credential_path = "/home/kerri/bigquery-jaya-consultant-cosmic-octane-88917-c46ba9b53a3b.json"
-
-# the json credentials stored as env variable
-json_str = os.environ.get('GOOGLE_CREDENTIALS')
-
-# generate json - if there are errors here remove newlines in .env
-json_data = json.loads(json_str)
-# the private_key needs to replace \n parsed as string literal with escaped newlines
-json_data['private_key'] = json_data['private_key'].replace('\\n', '\n')
-
-# use service_account to generate credentials object
-credentials = service_account.Credentials.from_service_account_info(
-    json_data)
-
 project_id = 'cosmic-octane-88917'
-client = bigquery.Client(project=project_id, credentials=credentials)
+
+if os.environ.get('GOOGLE_APPLICATION_CREDENTIALS') == None:
+    # the json credentials stored as env variable
+    json_str = os.environ.get('GOOGLE_CREDENTIALS')
+
+    # generate json - if there are errors here remove newlines in .env
+    json_data = json.loads(json_str)
+    # the private_key needs to replace \n parsed as string literal with escaped newlines
+    json_data['private_key'] = json_data['private_key'].replace('\\n', '\n')
+
+    # use service_account to generate credentials object
+    credentials = service_account.Credentials.from_service_account_info(
+        json_data)
+else:
+    credential_path = "/home/kerri/bigquery-jaya-consultant-cosmic-octane-88917-c46ba9b53a3b.json"
+    assert os.path.exists(credential_path)
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credential_path
+    client = bigquery.Client(project=project_id)
 
 
 class Flow(SankeyFlow):
@@ -93,6 +97,7 @@ class Flow(SankeyFlow):
         :param dates: date range where the plots will be shaded
         :return: plotly figure containing a total of 2*len(topics) graphs
         """
+
         def plot_traces(fig: go.Figure,
                         data: pd.DataFrame,
                         x: str,
@@ -118,11 +123,11 @@ class Flow(SankeyFlow):
             for n, category in enumerate(data[hue].unique()):
                 temp = data[data[hue] == category]
                 chart = go.Scatter(x=temp[x],
-                                                y=temp[y],
-                                                mode='lines',
-                                                name=category,
-                                                marker_color=px.colors.sequential.Plasma[n]
-                                                )
+                                   y=temp[y],
+                                   mode='lines',
+                                   name=category,
+                                   marker_color=px.colors.sequential.Plasma[n]
+                                   )
                 fig.add_trace(chart, row=row, col=col)
             return fig
 
@@ -204,11 +209,23 @@ class Flow(SankeyFlow):
         :return: 4 Seaborn line plots containing distinct sessionId counts and
         average call duration
         """
-        # TODO make top_paths_names match
-        top_paths = self._open_sql('top_paths.sql')
-        df = client.query(top_paths.format(f"('{self._flow_name}')")).to_dataframe()
+
+        if hasattr(self, 'master') == False:
+            self._get_master()
+
+        target_paths = [f"{n}-Path_Freq_Rank" for n in range(1, 10)]
+        df = self.master[self.master['path_nickname'].isin(target_paths)].copy()
+        df['date'] = df.time_event.dt.date
+        path_metrics = df.groupby(['path_nickname', 'date']).agg({'session_duration': ['mean'], 'count': ['sum']},
+                                                                 as_index=False).reset_index()
+        df = pd.DataFrame({'path_nickname': path_metrics['path_nickname'],
+                           'date': path_metrics['date'],
+                           'avg_duration': path_metrics['session_duration']['mean'],
+                           'count': path_metrics['count']['sum']})
+        df['avg_14_day_avg_duration'] = df.avg_duration.rolling(14).mean()
+        df['avg_14_day_count'] = df.avg_duration.rolling(14).mean()
         fig = self.time_stats(df,
-                              'nickname',
+                              'path_nickname',
                               {'count': 1, 'avg_duration': 2},
                               (self.start_date, self.end_date))
         fig = self._fig_layout(fig)
@@ -251,7 +268,6 @@ class Flow(SankeyFlow):
         """
         return f"('{self._flow_name}')"
 
-
     @staticmethod
     @anycache(cachedir=os.path.join(dir_path, 'data/anycache.my'))
     def query_db(query: str, flow_name: str, start_date: str, end_date: str) -> pd.DataFrame:
@@ -264,6 +280,7 @@ class Flow(SankeyFlow):
         :return: dataframe containing results of query
         """
         print("Starting Query")
+
         query = query.format(flow_name,
                              start_date,
                              end_date)
@@ -278,10 +295,22 @@ class Flow(SankeyFlow):
         start_time = time.time()
         start_date, end_date = self._get_date(None, self.start_date), self._get_date(None, self.end_date)
         query = self._open_sql('user_sequence.sql')
-        self.master = self.query_db(query,
-                                    self._formatted_flow_name(),
-                                    start_date.strftime('%Y-%m-%d'),
-                                    end_date.strftime('%Y-%m-%d'))
+
+        # Temp fix for testing because my credentials are not working
+        cache = True
+        if cache:
+            df = pd.read_csv(os.path.join(self.dir_path,
+                                          'data/manually_loaded_data',
+                                          'United Kingdom-Customer Service.csv'))
+            print("Converting object types...")
+            df = df.astype({'time_event': 'datetime64[ns]'})
+            df['time_event'] = df.time_event.apply(lambda x: pytz.utc.localize(x))
+            self.master = df
+        else:
+            self.master = self.query_db(query,
+                                        self._formatted_flow_name(),
+                                        start_date.strftime('%Y-%m-%d'),
+                                        end_date.strftime('%Y-%m-%d'))
         print(f"Master Dataset Gathered in {round(time.time() - start_time, 0)} seconds")
 
     def create_user_sequence(self,
@@ -345,4 +374,3 @@ class Flow(SankeyFlow):
         title = f"{self._flow_name} From {start_date} to {end_date}" if title is None else title
         fig = self.plot(threshold, title)
         return fig
-

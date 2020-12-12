@@ -57,10 +57,11 @@ class SankeyFlow:
                              cat_cols=['event_name', 'next_event'],
                              value_cols=['count', 'time_from_start'],
                              color_col=['color']):
-
+        '''
         if len(df) > 10000:
             print("Sampling Dataset")
             df = df.sample(10000)
+        '''
         # maximum of 6 value cols -> 6 colors
         colorPalette = ['#4B8BBE', '#306998', '#FFE873', '#FFD43B', '#646464']
         labelList = []
@@ -120,7 +121,7 @@ class SankeyFlow:
             sourceTargetDf.loc[sourceTargetDf['path_nickname'] == colored_path, 'color'] = '#ed7953'
         else:
             print("Colored path is none")
-        sourceTargetDf.loc[sourceTargetDf['callback_route'] == 1, 'color'] = '#800000'
+        sourceTargetDf.loc[sourceTargetDf['callback_instance'] == 1, 'color'] = '#800000'
         sourceTargetDf = sourceTargetDf[sourceTargetDf['count'] >= threshold]
         # creating the sankey diagram
         data = dict(
@@ -174,7 +175,7 @@ class SankeyFlow:
         start_time = time.time()
         self.labelList, self.colorList, self.sourceTargetDf = self.build_sourceTargetDf(data,
                                                                                         color_col=['path_nickname',
-                                                                                                   'callback_route'])
+                                                                                                   'callback_instance'])
         fig = self.genSankey(
             self.sourceTargetDf,
             self.labelList,
