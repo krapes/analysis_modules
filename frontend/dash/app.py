@@ -19,60 +19,72 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.GRID, external_styles
 server = app.server
 
 AVAILABLE_FLOWS = ["Italy - Customer Service",
-                    "Germany - Customer Service"]
+                   "Germany - Customer Service"]
+LOADER = 'dot'
 
 global flow
 flow = Flow(flow_name=AVAILABLE_FLOWS[0])
-#fig = flow.sankey_plot()
+
 
 app.layout = html.Div(children=[
     dbc.Row(dbc.Col(html.H1(children=f'SharkNinja'))),
     dbc.Row([dbc.Col(dcc.Dropdown(
-                id='available_flows',
-                options=[{'label': i, 'value': i} for i in AVAILABLE_FLOWS],
-                value=AVAILABLE_FLOWS[0]
-            ), width=3),
+        id='available_flows',
+        options=[{'label': i, 'value': i} for i in AVAILABLE_FLOWS],
+        value=AVAILABLE_FLOWS[0]
+    ), width=3),
         dbc.Col(dcc.Dropdown(id='path_name',
-                                    options=[
-                                        {'label': '1-Path_Freq_Rank', 'value': '1-Path_Freq_Rank'},
-                                        {'label': '2-Path_Freq_Rank', 'value': '2-Path_Freq_Rank'},
-                                        {'label': '3-Path_Freq_Rank', 'value': '3-Path_Freq_Rank'},
-                                        {'label': '4-Path_Freq_Rank', 'value': '4-Path_Freq_Rank'},
-                                        {'label': '5-Path_Freq_Rank', 'value': '5-Path_Freq_Rank'},
-                                        {'label': '6-Path_Freq_Rank', 'value': '6-Path_Freq_Rank'},
-                                        {'label': '7-Path_Freq_Rank', 'value': '7-Path_Freq_Rank'},
-                                        {'label': '8-Path_Freq_Rank', 'value': '8-Path_Freq_Rank'},
-                                        {'label': '9-Path_Freq_Rank', 'value': '9-Path_Freq_Rank'},
-                                        {'label': '10-Path_Freq_Rank', 'value': '10-Path_Freq_Rank'},
-                                    ],
-                                    value='1-Path_Freq_Rank'
-                                ), width=3)]),
+                             options=[
+                                 {'label': '1-Path_Freq_Rank', 'value': '1-Path_Freq_Rank'},
+                                 {'label': '2-Path_Freq_Rank', 'value': '2-Path_Freq_Rank'},
+                                 {'label': '3-Path_Freq_Rank', 'value': '3-Path_Freq_Rank'},
+                                 {'label': '4-Path_Freq_Rank', 'value': '4-Path_Freq_Rank'},
+                                 {'label': '5-Path_Freq_Rank', 'value': '5-Path_Freq_Rank'},
+                                 {'label': '6-Path_Freq_Rank', 'value': '6-Path_Freq_Rank'},
+                                 {'label': '7-Path_Freq_Rank', 'value': '7-Path_Freq_Rank'},
+                                 {'label': '8-Path_Freq_Rank', 'value': '8-Path_Freq_Rank'},
+                                 {'label': '9-Path_Freq_Rank', 'value': '9-Path_Freq_Rank'},
+                                 {'label': '10-Path_Freq_Rank', 'value': '10-Path_Freq_Rank'},
+                             ],
+                             value='1-Path_Freq_Rank'
+                             ), width=3)]),
     dbc.Row(dbc.Col(html.H1(id='flow_name'))),
-    dbc.Row(
-            [dbc.Col(dcc.Graph(id='paths_time'), width=5),
-                dbc.Col(dcc.Graph(id='sankey'), width=6),
-                dbc.Col([html.Label('Threshold'),
-                        dcc.Slider(
-                            id='threshold_slider',
-                            min=0,
-                            max=100,
-                            value=10,
-                            step=1,
-                            vertical=True
-                        )])
-            ]),
     dbc.Row([
-             dbc.Col([dcc.Graph(id='totals_time'),
-                      html.H4(id='date_range'),
-                      dcc.RangeSlider(
-                                        id='date_slider',
-                                        min=0,
-                                        max=100,
-                                        value=[0, 100],
-                                        step=5,
-                                    )], width=10, align="center")])
+        dbc.Col([dcc.Loading(
+            id="loading-1",
+            type=LOADER,
+            children=[dcc.Graph(id='paths_time')])], width=5),
+        dbc.Col([dcc.Loading(
+            id="loading-2",
+            type=LOADER,
+            children=[dcc.Graph(id='sankey')])], width=6),
+        dbc.Col([html.Label('Threshold'),
+                 dcc.Slider(
+                     id='threshold_slider',
+                     min=0,
+                     max=100,
+                     value=10,
+                     step=1,
+                     vertical=True
+                 )])
+    ]),
+    dbc.Row([
+
+        dbc.Col([dcc.Loading(
+            id="loading-3",
+            type=LOADER,
+            children=[dcc.Graph(id='totals_time')]),
+            html.H4(id='date_range'),
+            dcc.RangeSlider(
+                id='date_slider',
+                min=0,
+                max=100,
+                value=[0, 100],
+                step=5,
+            )], width=10, align="center")])
 
 ])
+
 
 @app.callback(
     [Output('sankey', 'figure'),
@@ -108,6 +120,7 @@ def update_figure(threshold, flow_name, date_range, path_name):
     fig_totals_time = flow.distinct_sessionId_count_plot()
     fig_paths_time = flow.top_paths_plot()
     return fig_sankey, fig_paths_time, fig_totals_time, flow_name, date_range
+
 
 if __name__ == '__main__':
     app.run_server(debug=True)
