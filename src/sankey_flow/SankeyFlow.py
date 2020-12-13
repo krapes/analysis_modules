@@ -75,19 +75,24 @@ class SankeyFlow:
         # remove duplicates from labelList
         #labelList = list(dict.fromkeys(labelList))
         '''
-        grouped = df.groupby('event_name')
-        ideal_node_locations = pd.DataFrame(grouped.rank_event.apply(lambda row: row.mode()))
-        ideal_node_locations.reset_index(inplace=True)
-        labelList = ideal_node_locations.sort_values('rank_event').event_name.to_list()
-
+        start_time = time.time()
+        labelList = []
+        for cat_col in cat_cols:
+            grouped = df.groupby(cat_col)
+            ideal_node_locations = pd.DataFrame(grouped.rank_event.apply(lambda row: row.mode()))
+            ideal_node_locations.reset_index(inplace=True)
+            labelList += [event for event in ideal_node_locations.sort_values('rank_event')[cat_col].to_list()
+                         if event not in labelList]
+        print(f"labelList created in {round((time.time() - start_time) * 60, 2)}")
 
         # define colors based on number of levels
         # colorList = []
-        #for idx, colorNum in enumerate(colorNumList):
+        # for idx, colorNum in enumerate(colorNumList):
         #    colorList = colorList + [colorPalette[idx]] * colorNum
-        colorList = [colorPalette[0]]*len(labelList)
+        colorList = [colorPalette[0]] * len(labelList)
 
         # transform df into a source-target pair
+        '''
         for i in range(len(cat_cols) - 1):
             if i == 0:
                 sourceTargetDf = df[cat_cols + value_cols + color_col]
@@ -96,14 +101,27 @@ class SankeyFlow:
                 tempDf = df[[cat_cols[i], cat_cols[i + 1], value_cols]]
                 tempDf.columns = ['source', 'target', 'count']
                 sourceTargetDf = pd.concat([sourceTargetDf, tempDf])
-            sourceTargetDf = (sourceTargetDf
-                              .groupby(['source', 'target'] + color_col)
-                              .agg({'count': 'sum', 'time_from_start': 'mean'})
-                              .reset_index())
+        '''
+        start_time = time.time()
+        sourceTargetDf = df[cat_cols + value_cols + color_col]
+        sourceTargetDf.columns = ['source', 'target'] + value_cols + color_col
+        sourceTargetDf = (sourceTargetDf
+                          .groupby(['source', 'target'] + color_col)
+                          .agg({'count': 'sum', 'time_from_start': 'mean'})
+                          .reset_index())
+        print(f"sourceTargetDf created in {round((time.time() - start_time) * 60, 2)}")
 
         # add index for source-target pair
+        start_time = time.time()
         sourceTargetDf['sourceID'] = sourceTargetDf['source'].apply(lambda x: labelList.index(x))
-        sourceTargetDf['targetID'] = sourceTargetDf['target'].apply(lambda x: labelList.index(x))
+        print(f"sourceID created in {round((time.time() - start_time) * 60, 2)}")
+        start_time = time.time()
+        try:
+            sourceTargetDf['targetID'] = sourceTargetDf['target'].apply(lambda x: labelList.index(x))
+        except Exception as e:
+            print(labelList)
+            raise e
+        print(f"targetID created in {round((time.time() - start_time) * 60, 2)}")
 
         return labelList, colorList, sourceTargetDf
 
@@ -121,7 +139,7 @@ class SankeyFlow:
             sourceTargetDf.loc[sourceTargetDf['path_nickname'] == colored_path, 'color'] = '#ed7953'
         else:
             print("Colored path is none")
-        sourceTargetDf.loc[sourceTargetDf['callback_instance'] == 1, 'color'] = '#800000'
+        # sourceTargetDf.loc[sourceTargetDf['callback_instance'] == 1, 'color'] = '#800000'
         sourceTargetDf = sourceTargetDf[sourceTargetDf['count'] >= threshold]
         # creating the sankey diagram
         data = dict(
@@ -171,11 +189,11 @@ class SankeyFlow:
 
         self.title = title
         data = self._data.copy()
-        print("Starting genSankey")
+        print(f"Starting genSankey of plot {data.time_event.min()} to {data.time_event.max()}")
         start_time = time.time()
         self.labelList, self.colorList, self.sourceTargetDf = self.build_sourceTargetDf(data,
-                                                                                        color_col=['path_nickname',
-                                                                                                   'callback_instance'])
+                                                                                        color_col=['path_nickname'])
+
         fig = self.genSankey(
             self.sourceTargetDf,
             self.labelList,

@@ -23,7 +23,7 @@ AVAILABLE_FLOWS = ["Italy - Customer Service",
 
 global flow
 flow = Flow(flow_name=AVAILABLE_FLOWS[0])
-fig = flow.sankey_plot()
+#fig = flow.sankey_plot()
 
 app.layout = html.Div(children=[
     dbc.Row(dbc.Col(html.H1(children=f'SharkNinja'))),
@@ -94,6 +94,7 @@ def update_figure(threshold, flow_name, date_range, path_name):
         flow.path_highlight = path_name
         fig_sankey = flow.sankey_modify_path_highlight(path_name)
     elif flow_name == flow._flow_name:
+        print("Change dates")
         flow.start_date = new_start_date
         flow.end_date = new_end_date
         flow.threshold = threshold

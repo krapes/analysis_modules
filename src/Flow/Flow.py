@@ -148,8 +148,9 @@ class Flow(SankeyFlow):
                               row=1, col=topics[topic])
             y_max = df[f"avg_14_day_{topic}"].max()
 
-            fig.add_trace(go.Scatter(x=[dates[0], dates[1]], y=[y_max, y_max], fill='tozeroy'),
-                          row=1, col=topics[topic])
+            if dates is not None:
+                fig.add_trace(go.Scatter(x=[dates[0], dates[1]], y=[y_max, y_max], fill='tozeroy'),
+                              row=1, col=topics[topic])
             fig = plot_traces(fig,
                               data=df,
                               x='date',
@@ -157,8 +158,9 @@ class Flow(SankeyFlow):
                               hue=hue,
                               row=2, col=topics[topic])
             y_max = df[topic].max()
-            fig.add_trace(go.Scatter(x=[dates[0], dates[1]], y=[y_max, y_max], fill='tozeroy'),
-                          row=2, col=topics[topic])
+            if dates is not None:
+                fig.add_trace(go.Scatter(x=[dates[0], dates[1]], y=[y_max, y_max], fill='tozeroy'),
+                              row=2, col=topics[topic])
 
         fig.update_layout(width=700, height=(300 * rows))
         return fig
@@ -209,13 +211,13 @@ class Flow(SankeyFlow):
         :return: 4 Seaborn line plots containing distinct sessionId counts and
         average call duration
         """
+        print("Creating top_paths_plot")
+        if hasattr(self, '_data') == False:
+            self._data = self.create_user_sequence(self.start_date, self.end_date)
 
-        if hasattr(self, 'master') == False:
-            self._get_master()
-
-        target_paths = [f"{n}-Path_Freq_Rank" for n in range(1, 10)]
-        df = self.master[self.master['path_nickname'].isin(target_paths)].copy()
-        df['date'] = df.time_event.dt.date
+        df = self._data.copy()
+        target_paths = df.value_counts(['path_nickname'])[:10].reset_index().path_nickname.to_list()
+        df = df[df['path_nickname'].isin(target_paths)]
         path_metrics = df.groupby(['path_nickname', 'date']).agg({'session_duration': ['mean'], 'count': ['sum']},
                                                                  as_index=False).reset_index()
         df = pd.DataFrame({'path_nickname': path_metrics['path_nickname'],
@@ -226,8 +228,7 @@ class Flow(SankeyFlow):
         df['avg_14_day_count'] = df['count'].rolling(14).mean()
         fig = self.time_stats(df,
                               'path_nickname',
-                              {'count': 1, 'avg_duration': 2},
-                              (self.start_date, self.end_date))
+                              {'count': 1, 'avg_duration': 2})
         fig = self._fig_layout(fig)
         return fig
 
@@ -236,11 +237,11 @@ class Flow(SankeyFlow):
 
         :return: two plots containing unique sessionId count and the 14 day rolling average
         """
-
+        print("Creating distinct_sessionId_count_plot")
         if hasattr(self, 'master') == False:
             self._get_master()
+
         df = self.master.copy()
-        df['date'] = df.time_event.dt.date
         path_metrics = df.groupby(['date', 'FlowName']).agg({'count': ['sum']},
                                                             as_index=False).reset_index()
         df = pd.DataFrame({'FlowName': path_metrics['FlowName'],
@@ -296,6 +297,8 @@ class Flow(SankeyFlow):
                              end_date)
         return client.query(query).to_dataframe()
 
+    # TODO Testing only, remove this
+    @anycache(cachedir=os.path.join(dir_path, 'data/anycache.my'))
     def _get_master(self):
         """ Get the global dataset that will be used for all calculations inside
         this instance of the class
@@ -315,6 +318,7 @@ class Flow(SankeyFlow):
             print("Converting object types...")
             df = df.astype({'time_event': 'datetime64[ns]'})
             df['time_event'] = df.time_event.apply(lambda x: pytz.utc.localize(x))
+            df['date'] = df.time_event.dt.date
             self.master = df
         else:
             self.master = self.query_db(query,
