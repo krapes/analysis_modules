@@ -131,7 +131,6 @@ class Flow(SankeyFlow):
                 fig.add_trace(chart, row=row, col=col)
             return fig
 
-        rows = len(topics.keys())
 
         titles = [""] * len(topics.keys()) * 2
         for i, topic in enumerate(topics.keys()):
@@ -162,7 +161,6 @@ class Flow(SankeyFlow):
                 fig.add_trace(go.Scatter(x=[dates[0], dates[1]], y=[y_max, y_max], fill='tozeroy'),
                               row=2, col=topics[topic])
 
-        # fig.update_layout(width=700, height=(300 * rows))
         fig.update_layout()
         return fig
 
@@ -193,7 +191,14 @@ class Flow(SankeyFlow):
                 showline=False,
                 showticklabels=False,
             ),
+            autosize=True,
             showlegend=False,
+            margin=dict(
+                autoexpand=False,
+                l=20,
+                r=20,
+                t=110,
+            ),
             plot_bgcolor='white'
         )
         return fig
@@ -291,8 +296,7 @@ class Flow(SankeyFlow):
                              end_date)
         return client.query(query).to_dataframe()
 
-    # TODO Testing only, remove this
-    @anycache(cachedir=os.path.join(dir_path, 'data/anycache.my'))
+
     def _get_master(self):
         """ Get the global dataset that will be used for all calculations inside
         this instance of the class
@@ -372,13 +376,6 @@ class Flow(SankeyFlow):
             self._data = data
         else:
             self._data = self.create_user_sequence(start_date, end_date)
-        # TODO reinstate date selection
-        '''
-        if start_date is not None:
-            self._data = self._data[self._data['time_event'] > self._to_datetime(start_date)]
-        if end_date is not None:
-            self._data = self._data[self._data['time_event'] < self._to_datetime(end_date)]
-        '''
         title = f"{self._flow_name} From {start_date} to {end_date}" if title is None else title
         fig = self.plot(threshold, title)
         return fig
