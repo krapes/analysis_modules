@@ -207,7 +207,7 @@ class Flow(SankeyFlow):
         """ Calculates the 10 most common user paths and plots their distinct
             SessionId count and average call duration
 
-        :return: 4 Seaborn line plots containing distinct sessionId counts and
+        :return: 4  line plots containing distinct sessionId counts and
         average call duration
         """
         print("Creating top_paths_plot")
