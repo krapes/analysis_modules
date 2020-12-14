@@ -162,7 +162,8 @@ class Flow(SankeyFlow):
                 fig.add_trace(go.Scatter(x=[dates[0], dates[1]], y=[y_max, y_max], fill='tozeroy'),
                               row=2, col=topics[topic])
 
-        fig.update_layout(width=700, height=(300 * rows))
+        # fig.update_layout(width=700, height=(300 * rows))
+        fig.update_layout()
         return fig
 
     @staticmethod
@@ -192,14 +193,7 @@ class Flow(SankeyFlow):
                 showline=False,
                 showticklabels=False,
             ),
-            autosize=True,
-            margin=dict(
-                autoexpand=False,
-                l=100,
-                r=20,
-                t=110,
-            ),
-            showlegend=True,
+            showlegend=False,
             plot_bgcolor='white'
         )
         return fig

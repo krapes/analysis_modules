@@ -81,7 +81,7 @@ app.layout = html.Div(children=[
                 max=100,
                 value=[0, 100],
                 step=5,
-            )], width=10, align="center")])
+            )], width={"size": 10, "offset": 1}, align="center")])
 
 ])
 
