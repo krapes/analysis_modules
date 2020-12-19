@@ -8,8 +8,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 import dash_bootstrap_components as dbc
-import plotly.express as px
-import pandas as pd
+
 
 from src import Flow
 
@@ -18,7 +17,7 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.GRID, external_stylesheets])
 server = app.server
 
-AVAILABLE_FLOWS = ["United Kingdom-Customer Service"]
+AVAILABLE_FLOWS = ["United Kingdom - Customer Service", "Italy - Customer Service", "Spain - Customer Service"]
 LOADER = 'dot'
 
 global flow
@@ -73,7 +72,6 @@ app.layout = html.Div(children=[
             id="loading-3",
             type=LOADER,
             children=[dcc.Graph(id='totals_time')]),
-            html.H4(id='date_range'),
             dcc.RangeSlider(
                 id='date_slider',
                 min=0,
@@ -89,8 +87,7 @@ app.layout = html.Div(children=[
     [Output('sankey', 'figure'),
      Output('paths_time', 'figure'),
      Output('totals_time', 'figure'),
-     Output('flow_name', 'children'),
-     Output('date_range', 'children')],
+     Output('flow_name', 'children')],
     [Input('threshold_slider', 'value'),
      Input('available_flows', 'value'),
      Input('date_slider', 'value'),
@@ -99,7 +96,6 @@ def update_figure(threshold, flow_name, date_range, path_name):
     print(f"threshold: {threshold} flow_name: {flow_name} date_range: {date_range} path_name: {path_name}")
     global flow
     new_start_date, new_end_date = flow.date_at_percent(date_range[0]), flow.date_at_percent(date_range[1])
-    date_range = f"Showing Sessions from {flow.start_date} to {flow.end_date}"
     if flow_name == flow._flow_name and new_start_date == flow.start_date and new_end_date == flow.end_date:
         flow.threshold = threshold
         flow.path_highlight = path_name
@@ -118,7 +114,7 @@ def update_figure(threshold, flow_name, date_range, path_name):
         fig_sankey = flow.sankey_plot()
     fig_totals_time = flow.distinct_sessionId_count_plot()
     fig_paths_time = flow.top_paths_plot()
-    return fig_sankey, fig_paths_time, fig_totals_time, flow_name, date_range
+    return fig_sankey, fig_paths_time, fig_totals_time, flow_name
 
 
 if __name__ == '__main__':
