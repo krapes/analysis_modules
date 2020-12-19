@@ -14,10 +14,12 @@ import json
 from google.oauth2 import service_account
 
 from src import SankeyFlow
+from src import Utilities
 
 # credential_path = "/home/kerri/bigquery-jaya-consultant-cosmic-octane-88917-c46ba9b53a3b.json"
 project_id = 'cosmic-octane-88917'
-
+client = Utilities.get_bigquery_client(project_id)
+'''
 if os.environ.get('GOOGLE_APPLICATION_CREDENTIALS') == None:
     # the json credentials stored as env variable
     json_str = os.environ.get('GOOGLE_CREDENTIALS')
@@ -35,7 +37,7 @@ else:
     assert os.path.exists(credential_path)
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credential_path
     client = bigquery.Client(project=project_id)
-
+'''
 
 class Flow(SankeyFlow):
     dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -51,18 +53,6 @@ class Flow(SankeyFlow):
                                                                      .strptime('2020-01-01', '%Y-%m-%d')
                                                                      .date())
         self.end_date = end_date if end_date is not None else datetime.date.today()
-
-    def _open_sql(self, filename: str) -> str:
-        """ Opens the file from the SQLs folder in this module and returns
-            it as a string
-
-        :param filename: name of file containing the desired query
-        :return: string containing the contents of that file
-        """
-        file_path = os.path.join(self.dir_path, 'SQLs', filename)
-        with open(file_path) as f:
-            file_content = f.read()
-        return file_content
 
     def date_at_percent(self, percentage: int):
         """ Given an int that represents a percentage from zero to 100 the function returns
@@ -262,6 +252,9 @@ class Flow(SankeyFlow):
         :param default: default value if date is None
         :return: datetime.date
         """
+        if type(default) != datetime.date:
+            raise Exception(f"Default date value must be datetime.date, received {type(default)}")
+
         if date is None:
             date = default
         elif type(date) is str:
@@ -305,7 +298,7 @@ class Flow(SankeyFlow):
         """
         start_time = time.time()
         start_date, end_date = self._get_date(None, self.start_date), self._get_date(None, self.end_date)
-        query = self._open_sql('user_sequence.sql')
+        query = Utilities.open_sql(self.dir_path, 'user_sequence.sql')
 
         # Temp fix for testing because my credentials are not working
         cache = False

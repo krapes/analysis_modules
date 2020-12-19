@@ -11,13 +11,15 @@ import dash_bootstrap_components as dbc
 
 
 from src import Flow
+from src import CpassStatus
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.GRID, external_stylesheets])
 server = app.server
 
-AVAILABLE_FLOWS = ["United Kingdom - Customer Service", "Italy - Customer Service", "Spain - Customer Service"]
+project_id = 'cosmic-octane-88917'
+AVAILABLE_FLOWS = CpassStatus('cosmic-octane-88917').get_available_flows()
 LOADER = 'dot'
 
 global flow
@@ -25,7 +27,7 @@ flow = Flow(flow_name=AVAILABLE_FLOWS[0])
 
 
 app.layout = html.Div(children=[
-    dbc.Row(dbc.Col(html.H1(children=f'SharkNinja'))),
+    dbc.Row(dbc.Col(html.H1(children=f'SmartFlow Analysis'))),
     dbc.Row([dbc.Col(dcc.Dropdown(
         id='available_flows',
         options=[{'label': i, 'value': i} for i in AVAILABLE_FLOWS],
@@ -108,7 +110,8 @@ def update_figure(threshold, flow_name, date_range, path_name):
         flow.path_highlight = path_name
         fig_sankey = flow.sankey_plot()
     else:
-        flow = Flow(flow_name=flow_name, start_date=new_start_date, end_date=new_end_date)
+        print(f"New Flow {flow_name}")
+        flow = Flow(flow_name=flow_name, start_date=None, end_date=None)
         flow.threshold = threshold
         flow.path_highlight = path_name
         fig_sankey = flow.sankey_plot()
