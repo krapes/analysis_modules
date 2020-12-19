@@ -53,7 +53,7 @@ app.layout = html.Div(children=[
         dbc.Col([dcc.Loading(
             id="loading-1",
             type=LOADER,
-            children=[dcc.Graph(id='paths_time')])], width=5),
+            children=[dcc.Tabs([dcc.Tab(label='Tab one', children=[dcc.Graph(id='paths_time')]), dcc.Tab(label='Tab two', children=[html.H1(children=f'SmartFlow Analysis')])])])], width=5),
         dbc.Col([dcc.Loading(
             id="loading-2",
             type=LOADER,
