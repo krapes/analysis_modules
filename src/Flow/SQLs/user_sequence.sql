@@ -61,9 +61,8 @@ SELECT  SessionId,
         CallingNumber,
         FlowName
 FROM major_events
-WHERE
-FlowName in ('United Kingdom - Customer Service')
---AND EXTRACT(DATE FROM TimeStamp) BETWEEN '{1}' AND '{2}'
+WHERE FlowName in {0}
+AND EXTRACT(DATE FROM TimeStamp) BETWEEN '{1}' AND '{2}'
 --LIMIT 100000
 ),
 
@@ -97,15 +96,15 @@ filtered
 
 
 Session_paths AS (
-SELECT DISTINCT SessionId, TimeStamp, Path
+SELECT DISTINCT SessionId, TimeStamp, Path, session_duration
 FROM (
     SELECT
       SessionId,
       --FlowName,
-      FIRST_VALUE(TimeStamp) OVER(PARTITION BY SessionId, FlowName ORDER BY TimeStamp) AS TimeStamp,
-      --TIMESTAMP_DIFF(TimeStamp, FIRST_VALUE(TimeStamp) OVER(PARTITION BY SessionId, FlowName ORDER BY TimeStamp), SECOND) AS Duration,
-      STRING_AGG(ActionId, ';') OVER(PARTITION BY SessionId, FlowName ORDER BY TimeStamp) AS Path,
-      RANK() OVER(PARTITION BY SessionId, FlowName ORDER BY TimeStamp DESC) AS rank
+      FIRST_VALUE(TimeStamp) OVER(PARTITION BY SessionId ORDER BY TimeStamp) AS TimeStamp,
+      TIMESTAMP_DIFF(TimeStamp, FIRST_VALUE(TimeStamp) OVER(PARTITION BY SessionId ORDER BY TimeStamp), SECOND) AS session_duration,
+      STRING_AGG(ActionId, ';') OVER(PARTITION BY SessionId ORDER BY TimeStamp) AS Path,
+      RANK() OVER(PARTITION BY SessionId ORDER BY TimeStamp DESC) AS rank
     FROM
         filtered
        )
@@ -131,17 +130,19 @@ SELECT
        m.SessionId AS user_id,
        m.ActionId  AS event_name,
        m.TimeStamp AS time_event,
+       CAST(EXTRACT(DATE FROM m.TimeStamp) AS DATETIME) AS date,
        m.rank_event AS rank_event,
        m.next_event AS next_event,
        m.FlowName AS FlowName,
        TIMESTAMP_DIFF(m.TimeStamp, m.first_timestamp, SECOND) AS time_from_start,
        TIMESTAMP_DIFF(m.next_timestamp, m.TimeStamp, SECOND) AS time_to_next,
        pr.nickname AS path_nickname,
+       s.session_duration,
        1 AS count,
        cb.CallingNumber,
        cb.rank callback_instance
 FROM metric_prep m
-INNER JOIN Session_paths USING(SessionId)
+INNER JOIN Session_paths s USING(SessionId)
 INNER JOIN path_ranks pr USING(Path)
 LEFT JOIN callback_subset cb USING(SessionId)
 ORDER BY user_id, time_event

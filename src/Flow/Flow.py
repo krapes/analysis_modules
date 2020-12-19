@@ -308,7 +308,7 @@ class Flow(SankeyFlow):
         query = self._open_sql('user_sequence.sql')
 
         # Temp fix for testing because my credentials are not working
-        cache = True
+        cache = False
         if cache:
             df = pd.read_csv(os.path.join(self.dir_path,
                                           'data/manually_loaded_data',
