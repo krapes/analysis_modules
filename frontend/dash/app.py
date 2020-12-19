@@ -11,13 +11,16 @@ import dash_bootstrap_components as dbc
 
 
 from src import Flow
+from src import CpassStatus
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.GRID, external_stylesheets])
 server = app.server
 
-AVAILABLE_FLOWS = ["United Kingdom - Customer Service", "Italy - Customer Service", "Spain - Customer Service"]
+#AVAILABLE_FLOWS = ["United Kingdom - Customer Service", "Italy - Customer Service", "Spain - Customer Service"]
+project_id = 'cosmic-octane-88917'
+AVAILABLE_FLOWS = CpassStatus('cosmic-octane-88917').get_available_flows()
 LOADER = 'dot'
 
 global flow

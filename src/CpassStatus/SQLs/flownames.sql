@@ -1,0 +1,3 @@
+SELECT DISTINCT FlowName
+FROM analytics_us._VW_ApplicationExitEvent
+ORDER BY FlowName
