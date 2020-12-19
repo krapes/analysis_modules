@@ -18,7 +18,6 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.GRID, external_stylesheets])
 server = app.server
 
-#AVAILABLE_FLOWS = ["United Kingdom - Customer Service", "Italy - Customer Service", "Spain - Customer Service"]
 project_id = 'cosmic-octane-88917'
 AVAILABLE_FLOWS = CpassStatus('cosmic-octane-88917').get_available_flows()
 LOADER = 'dot'
@@ -28,7 +27,7 @@ flow = Flow(flow_name=AVAILABLE_FLOWS[0])
 
 
 app.layout = html.Div(children=[
-    dbc.Row(dbc.Col(html.H1(children=f'SharkNinja'))),
+    dbc.Row(dbc.Col(html.H1(children=f'SmartFlow Analysis'))),
     dbc.Row([dbc.Col(dcc.Dropdown(
         id='available_flows',
         options=[{'label': i, 'value': i} for i in AVAILABLE_FLOWS],
