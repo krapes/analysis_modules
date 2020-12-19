@@ -110,7 +110,8 @@ def update_figure(threshold, flow_name, date_range, path_name):
         flow.path_highlight = path_name
         fig_sankey = flow.sankey_plot()
     else:
-        flow = Flow(flow_name=flow_name, start_date=new_start_date, end_date=new_end_date)
+        print(f"New Flow {flow_name}")
+        flow = Flow(flow_name=flow_name, start_date=None, end_date=None)
         flow.threshold = threshold
         flow.path_highlight = path_name
         fig_sankey = flow.sankey_plot()
