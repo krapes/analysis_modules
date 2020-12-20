@@ -24,7 +24,7 @@ class Flow(SankeyFlow):
                  flow_name: str,
                  start_date: datetime.date = None,
                  end_date: datetime.date = None,
-                 include_tollfree = False) -> None:
+                 include_tollfree=False) -> None:
         super().__init__()
         self._flow_name = flow_name
         self.start_date = start_date if start_date is not None else (datetime
@@ -33,7 +33,6 @@ class Flow(SankeyFlow):
                                                                      .date())
         self.end_date = end_date if end_date is not None else datetime.date.today()
         self.include_tollfree = include_tollfree
-
 
     def set_tollfree_toggle(self, value: bool) -> None:
         if value != self.include_tollfree:
@@ -184,11 +183,24 @@ class Flow(SankeyFlow):
             self._data = self.create_user_sequence(self.start_date, self.end_date)
 
         df = self._data.copy()
-        path_metrics = df.groupby(['date', 'TollFreeNumber']).agg({'session_duration': ['mean'],
-                                                                   'previous_duration': ['mean'],
-                                                                   'days_since_last_call': ['mean'],
-                                                                   'count': ['sum']},
-                                                                  as_index=False).reset_index()
+        session_df = df.groupby(['user_id', 'date', 'TollFreeNumber']).agg({'session_duration': ['mean'],
+                                                'previous_duration': ['mean'],
+                                                'days_since_last_call': ['mean'],
+                                                'count': ['mean']},
+                                               as_index=False).reset_index()
+        session_df = pd.DataFrame({'user_id': session_df['user_id'],
+                                   'date': session_df['date'],
+                                   'TollFreeNumber': session_df['TollFreeNumber'],
+                                   'session_duration': session_df['session_duration']['mean'],
+                                   'previous_duration': session_df['previous_duration']['mean'],
+                                   'days_since_last_call': session_df['days_since_last_call']['mean'],
+                                   'count': [1] * len(session_df)
+                                   })
+        path_metrics = session_df.groupby(['date', 'TollFreeNumber']).agg({'session_duration': ['mean'],
+                                                                           'previous_duration': ['mean'],
+                                                                           'days_since_last_call': ['mean'],
+                                                                           'count': ['sum']},
+                                                                          as_index=False).reset_index()
         df = pd.DataFrame({'TollFreeNumber': path_metrics['TollFreeNumber'],
                            'date': path_metrics['date'],
                            'avg_duration': path_metrics['session_duration']['mean'],
@@ -199,10 +211,10 @@ class Flow(SankeyFlow):
         df.sort_values(by='date', inplace=True)
         grpd = df.groupby(['TollFreeNumber'])
 
-        df['avg_14_day_avg_duration'] = grpd['avg_duration'].transform(lambda x: x.rolling(3, center=False).mean())
+        df['avg_14_day_avg_duration'] = grpd['avg_duration'].transform(lambda x: x.rolling(14, center=False).mean())
         df['avg_14_day_avg_previous_duration'] = grpd['avg_previous_duration'].transform(
-            lambda x: x.rolling(3, center=False).mean())
-        df['avg_14_day_count'] = grpd['count'].transform(lambda x: x.rolling(3, center=False).mean())
+            lambda x: x.rolling(14, center=False).mean())
+        df['avg_14_day_count'] = grpd['count'].transform(lambda x: x.rolling(14, center=False).mean())
 
         titles = ('Count of Callbacks',
                   'Average Days Between This Call and Previous',
