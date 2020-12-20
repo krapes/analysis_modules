@@ -5,10 +5,10 @@
 
 import dash
 import dash_core_components as dcc
+import dash_daq as daq
 import dash_html_components as html
 from dash.dependencies import Input, Output
 import dash_bootstrap_components as dbc
-
 
 from src import Flow
 from src import CpassStatus
@@ -24,7 +24,6 @@ LOADER = 'dot'
 
 global flow
 flow = Flow(flow_name=AVAILABLE_FLOWS[0])
-
 
 app.layout = html.Div(children=[
     dbc.Row(dbc.Col(html.H1(children=f'SmartFlow Analysis'))),
@@ -47,7 +46,12 @@ app.layout = html.Div(children=[
                                  {'label': '10-Path_Freq_Rank', 'value': '10-Path_Freq_Rank'},
                              ],
                              value='1-Path_Freq_Rank'
-                             ), width=3)]),
+                             ), width=3),
+        dbc.Col(daq.BooleanSwitch(
+            on=True,
+            label="Include TollFree Numbers",
+            labelPosition="top"
+        ), width=2)]),
     dbc.Row(dbc.Col(html.H1(id='flow_name'))),
     dbc.Row([
         dbc.Col([dcc.Loading(
