@@ -53,7 +53,9 @@ app.layout = html.Div(children=[
         dbc.Col([dcc.Loading(
             id="loading-1",
             type=LOADER,
-            children=[dcc.Graph(id='paths_time')])], width=5),
+            children=[dcc.Tabs([dcc.Tab(label='User Path Breakdown', children=[dcc.Graph(id='paths_time')]),
+                                dcc.Tab(label='Callback Analysis', children=[dcc.Graph(id='callback_analysis')])
+                                ])])], width=5),
         dbc.Col([dcc.Loading(
             id="loading-2",
             type=LOADER,
@@ -88,6 +90,7 @@ app.layout = html.Div(children=[
 @app.callback(
     [Output('sankey', 'figure'),
      Output('paths_time', 'figure'),
+     Output('callback_analysis', 'figure'),
      Output('totals_time', 'figure'),
      Output('flow_name', 'children')],
     [Input('threshold_slider', 'value'),
@@ -117,7 +120,8 @@ def update_figure(threshold, flow_name, date_range, path_name):
         fig_sankey = flow.sankey_plot()
     fig_totals_time = flow.distinct_sessionId_count_plot()
     fig_paths_time = flow.top_paths_plot()
-    return fig_sankey, fig_paths_time, fig_totals_time, flow_name
+    callback_analysis = flow.callback_analysis()
+    return fig_sankey, fig_paths_time, callback_analysis, fig_totals_time, flow_name
 
 
 if __name__ == '__main__':
