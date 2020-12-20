@@ -66,9 +66,25 @@ AND EXTRACT(DATE FROM TimeStamp) BETWEEN '{1}' AND '{2}'
 
 ),
 
+tollfreenumbers AS (
+SELECT '%800%' areacode, '.' matchkey
+UNION ALL
+SELECT '%888%' areacode, '.' matchkey
+UNION ALL
+SELECT '%877%' areacode, '.' matchkey
+UNION ALL
+SELECT '%866%' areacode, '.' matchkey
+UNION ALL
+SELECT '%855%' areacode, '.' matchkey
+UNION ALL
+SELECT '%844%' areacode, '.' matchkey
+UNION ALL
+SELECT '%833%' areacode, '.' matchkey
+),
+
 callback_subset AS (
 SELECT DISTINCT *,
-        CASE WHEN LEFT(CallingNumber, 4) in ('+1800%') THEN 'Toll Free' ELSE 'Non Toll Free' END AS TollFreeNumber,
+        CASE WHEN LEFT(CallingNumber, 6) LIKE tollfreenumbers.areacode THEN 1 ELSE 0 END AS TollFreeNumber,
         RANK() OVER(PARTITION BY CallingNumber ORDER BY TimeStamp) rank,
         TIMESTAMP_DIFF(TimeStamp, LAG(TimeStamp) OVER(PARTITION BY CallingNumber ORDER BY TimeStamp), DAY) days_since_last_call,
         LAG(session_duration) OVER(PARTITION BY CallingNumber ORDER BY TimeStamp) previous_duration
@@ -78,12 +94,29 @@ FROM (
                 SessionId,
                 MIN(Timestamp) TimeStamp,
                 TIMESTAMP_DIFF(MAX(TimeStamp), MIN(TimeStamp), SECOND) session_duration,
-
+                '.' matchkey
         FROM filtered f
         WHERE CallingNumber != 'Restricted'
         AND CallingNumber IS NOT NULL
         GROUP BY CallingNumber, SessionId
      )
+INNER JOIN tollfreenumbers USING(matchkey)
+),
+
+callbacks AS (
+SELECT DISTINCT *,
+        RANK() OVER(PARTITION BY CallingNumber ORDER BY TimeStamp) rank,
+        TIMESTAMP_DIFF(TimeStamp, LAG(TimeStamp) OVER(PARTITION BY CallingNumber ORDER BY TimeStamp), DAY) days_since_last_call,
+        LAG(session_duration) OVER(PARTITION BY CallingNumber ORDER BY TimeStamp) previous_duration
+FROM (
+      SELECT CallingNumber,
+             SessionId,
+             ANY_VALUE(TimeStamp) TimeStamp,
+             ANY_VALUE(session_duration) session_duration,
+             CASE WHEN SUM(TollFreeNumber) > 0 THEN 'TollFree' ELSE 'NonTollFree' END TollFreeNumber
+      FROM callback_subset
+      GROUP BY CallingNumber, SessionId
+      )
 ),
 
 
@@ -108,12 +141,11 @@ SELECT DISTINCT SessionId, TimeStamp, Path
 FROM (
     SELECT
       SessionId,
-      --FlowName,
-      FIRST_VALUE(TimeStamp) OVER(PARTITION BY SessionId ORDER BY TimeStamp) AS TimeStamp,
+      first_timestamp AS TimeStamp,
       STRING_AGG(ActionId, ';') OVER(PARTITION BY SessionId ORDER BY TimeStamp) AS Path,
       RANK() OVER(PARTITION BY SessionId ORDER BY TimeStamp DESC) AS rank
     FROM
-        filtered
+        metric_prep
        )
 WHERE rank = 1
 ),
@@ -154,5 +186,5 @@ SELECT
 FROM metric_prep m
 INNER JOIN Session_paths s USING(SessionId)
 INNER JOIN path_ranks pr USING(Path)
-LEFT JOIN callback_subset cb USING(SessionId)
+LEFT JOIN callbacks cb USING(SessionId)
 ORDER BY user_id, time_event

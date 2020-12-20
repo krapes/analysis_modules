@@ -39,6 +39,7 @@ else:
     client = bigquery.Client(project=project_id)
 '''
 
+
 class Flow(SankeyFlow):
     dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -106,7 +107,6 @@ class Flow(SankeyFlow):
             fig.add_trace(chart, row=row, col=col)
         return fig
 
-
     def time_stats(self, df: pd.DataFrame,
                    hue: str,
                    topics: Dict[str, int],
@@ -121,9 +121,6 @@ class Flow(SankeyFlow):
         :return: plotly figure containing a total of 2*len(topics) graphs
         """
 
-
-
-
         titles = [""] * len(topics.keys()) * 2
         for i, topic in enumerate(topics.keys()):
             titles[i] = f"14 Day Rolling Average {topic}"
@@ -132,22 +129,22 @@ class Flow(SankeyFlow):
 
         for i, topic in enumerate(topics, 1):
             fig = self.plot_traces(fig,
-                              data=df,
-                              x='date',
-                              y=f"avg_14_day_{topic}",
-                              hue=hue,
-                              row=1, col=topics[topic])
+                                   data=df,
+                                   x='date',
+                                   y=f"avg_14_day_{topic}",
+                                   hue=hue,
+                                   row=1, col=topics[topic])
             y_max = df[f"avg_14_day_{topic}"].max()
 
             if dates is not None:
                 fig.add_trace(go.Scatter(x=[dates[0], dates[1]], y=[y_max, y_max], fill='tozeroy'),
                               row=1, col=topics[topic])
             fig = self.plot_traces(fig,
-                              data=df,
-                              x='date',
-                              y=topic,
-                              hue=hue,
-                              row=2, col=topics[topic])
+                                   data=df,
+                                   x='date',
+                                   y=topic,
+                                   hue=hue,
+                                   row=2, col=topics[topic])
             y_max = df[topic].max()
             if dates is not None:
                 fig.add_trace(go.Scatter(x=[dates[0], dates[1]], y=[y_max, y_max], fill='tozeroy'),
@@ -221,36 +218,38 @@ class Flow(SankeyFlow):
             lambda x: x.rolling(3, center=False).mean())
         df['avg_14_day_count'] = grpd['count'].transform(lambda x: x.rolling(3, center=False).mean())
 
-        titles = ('Count vs Date', 'Average Days Between Calls vs Date', 'Average Duration of First Call vs Date',
-                  'Average Duration of Second Call vs Date')
+        titles = ('Count of Callbacks',
+                  'Average Days Between This Call and Previous',
+                  'Average Duration of Previous Call',
+                  'Average Duration of This Call')
         fig = make_subplots(rows=2, cols=2, subplot_titles=titles)
         fig = self.plot_traces(fig,
-                          data=df,
-                          x='date',
-                          y='count',
-                          hue='TollFreeNumber',
-                          row=1, col=1)
+                               data=df,
+                               x='date',
+                               y='count',
+                               hue='TollFreeNumber',
+                               row=1, col=1)
 
         fig = self.plot_traces(fig,
-                          data=df,
-                          x='date',
-                          y='avg_days_since_last_call',
-                          hue='TollFreeNumber',
-                          row=1, col=2)
+                               data=df,
+                               x='date',
+                               y='avg_days_since_last_call',
+                               hue='TollFreeNumber',
+                               row=1, col=2)
 
         fig = self.plot_traces(fig,
-                          data=df,
-                          x='date',
-                          y='avg_14_day_avg_duration',
-                          hue='TollFreeNumber',
-                          row=2, col=1)
+                               data=df,
+                               x='date',
+                               y='avg_14_day_avg_duration',
+                               hue='TollFreeNumber',
+                               row=2, col=1)
 
         fig = self.plot_traces(fig,
-                          data=df,
-                          x='date',
-                          y='avg_14_day_avg_previous_duration',
-                          hue='TollFreeNumber',
-                          row=2, col=2)
+                               data=df,
+                               x='date',
+                               y='avg_14_day_avg_previous_duration',
+                               hue='TollFreeNumber',
+                               row=2, col=2)
         fig = self._fig_layout(fig)
         return fig
 
@@ -349,7 +348,6 @@ class Flow(SankeyFlow):
                              start_date,
                              end_date)
         return client.query(query).to_dataframe()
-
 
     def _get_master(self):
         """ Get the global dataset that will be used for all calculations inside
