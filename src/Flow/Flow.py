@@ -15,25 +15,6 @@ from src import Utilities
 # credential_path = "/home/kerri/bigquery-jaya-consultant-cosmic-octane-88917-c46ba9b53a3b.json"
 project_id = 'cosmic-octane-88917'
 client = Utilities.get_bigquery_client(project_id)
-'''
-if os.environ.get('GOOGLE_APPLICATION_CREDENTIALS') == None:
-    # the json credentials stored as env variable
-    json_str = os.environ.get('GOOGLE_CREDENTIALS')
-
-    # generate json - if there are errors here remove newlines in .env
-    json_data = json.loads(json_str)
-    # the private_key needs to replace \n parsed as string literal with escaped newlines
-    json_data['private_key'] = json_data['private_key'].replace('\\n', '\n')
-
-    # use service_account to generate credentials object
-    credentials = service_account.Credentials.from_service_account_info(
-        json_data)
-else:
-    credential_path = "/home/kerri/bigquery-jaya-consultant-cosmic-octane-88917-c46ba9b53a3b.json"
-    assert os.path.exists(credential_path)
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credential_path
-    client = bigquery.Client(project=project_id)
-'''
 
 
 class Flow(SankeyFlow):
