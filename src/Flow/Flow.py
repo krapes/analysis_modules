@@ -1,6 +1,4 @@
 import os
-from google.cloud import bigquery
-import matplotlib.pyplot as plt
 import pandas as pd
 import datetime
 from typing import Tuple, Optional, Union, List, Dict, Any
@@ -10,8 +8,6 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import time
 from anycache import anycache
-import json
-from google.oauth2 import service_account
 
 from src import SankeyFlow
 from src import Utilities
@@ -119,7 +115,7 @@ class Flow(SankeyFlow):
     def time_stats(self, df: pd.DataFrame,
                    hue: str,
                    topics: Dict[str, int],
-                   dates: Tuple[datetime.date, datetime.date] = None) -> plt.Figure:
+                   dates: Tuple[datetime.date, datetime.date] = None) -> go.Figure:
         """Returns two line plots for every topic. The first containing a 14 day rolling
             average, the second containing the daily average.
 
