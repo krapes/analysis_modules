@@ -270,7 +270,7 @@ class Flow(SankeyFlow):
         average call duration
         """
         print("Creating top_paths_plot")
-        if hasattr(self, '_data') == False:
+        if hasattr(self, '_data') == False or self._data is None:
             self._data = self.create_user_sequence(self.start_date, self.end_date)
 
         df = self._data.copy()

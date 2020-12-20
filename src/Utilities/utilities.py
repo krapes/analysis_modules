@@ -17,12 +17,13 @@ def get_bigquery_client(project_id):
         # use service_account to generate credentials object
         credentials = service_account.Credentials.from_service_account_info(
             json_data)
+        client = bigquery.Client(project=project_id, credentials=credentials)
     else:
         credential_path = "/home/kerri/bigquery-jaya-consultant-cosmic-octane-88917-c46ba9b53a3b.json"
         assert os.path.exists(credential_path)
         os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credential_path
         client = bigquery.Client(project=project_id)
-        return client
+    return client
 
 
 
