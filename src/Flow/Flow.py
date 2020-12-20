@@ -46,7 +46,8 @@ class Flow(SankeyFlow):
     def __init__(self,
                  flow_name: str,
                  start_date: datetime.date = None,
-                 end_date: datetime.date = None) -> None:
+                 end_date: datetime.date = None,
+                 include_tollfree = False) -> None:
         super().__init__()
         self._flow_name = flow_name
         self.start_date = start_date if start_date is not None else (datetime
@@ -54,6 +55,14 @@ class Flow(SankeyFlow):
                                                                      .strptime('2020-01-01', '%Y-%m-%d')
                                                                      .date())
         self.end_date = end_date if end_date is not None else datetime.date.today()
+        self.include_tollfree = include_tollfree
+
+
+    def set_tollfree_toggle(self, value: bool) -> None:
+        if value != self.include_tollfree:
+            print(f"include_tollfree changed from {self.include_tollfree} to {value}")
+            self.include_tollfree = value
+            self._data = self.create_user_sequence()
 
     def date_at_percent(self, percentage: int):
         """ Given an int that represents a percentage from zero to 100 the function returns
@@ -394,6 +403,10 @@ class Flow(SankeyFlow):
             df = df[df['time_event'] > self._to_datetime(start_date)]
         if end_date is not None:
             df = df[df['time_event'] < self._to_datetime(end_date)]
+        if not self.include_tollfree:
+            length = len(df)
+            df = df[df['TollFreeNumber'] == 'NonTollFree']
+            print(f"Removing TollFreeNumbers: length before {length} length now {len(df)}")
         return df
 
     @staticmethod
