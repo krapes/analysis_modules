@@ -48,6 +48,7 @@ app.layout = html.Div(children=[
                              value='1-Path_Freq_Rank'
                              ), width=3),
         dbc.Col(daq.BooleanSwitch(
+            id='tollfree_toggle',
             on=True,
             label="Include TollFree Numbers",
             labelPosition="top"
@@ -100,12 +101,20 @@ app.layout = html.Div(children=[
     [Input('threshold_slider', 'value'),
      Input('available_flows', 'value'),
      Input('date_slider', 'value'),
-     Input('path_name', 'value')])
-def update_figure(threshold, flow_name, date_range, path_name):
-    print(f"threshold: {threshold} flow_name: {flow_name} date_range: {date_range} path_name: {path_name}")
+     Input('path_name', 'value'),
+     Input('tollfree_toggle', 'on')])
+def update_figure(threshold, flow_name, date_range, path_name, tollfree_toggle):
+    print(f"threshold: {threshold} "
+          f"flow_name: {flow_name} "
+          f"date_range: {date_range} "
+          f"path_name: {path_name} "
+          f"tollfree_toggle: {tollfree_toggle}")
     global flow
     new_start_date, new_end_date = flow.date_at_percent(date_range[0]), flow.date_at_percent(date_range[1])
-    if flow_name == flow._flow_name and new_start_date == flow.start_date and new_end_date == flow.end_date:
+    if (flow_name == flow._flow_name
+            and new_start_date == flow.start_date
+            and new_end_date == flow.end_date
+            and tollfree_toggle == flow.include_tollfree):
         flow.threshold = threshold
         flow.path_highlight = path_name
         fig_sankey = flow.sankey_modify_path_highlight(path_name)
@@ -114,11 +123,12 @@ def update_figure(threshold, flow_name, date_range, path_name):
         flow.start_date = new_start_date
         flow.end_date = new_end_date
         flow.threshold = threshold
+        flow.set_tollfree_toggle(tollfree_toggle)
         flow.path_highlight = path_name
         fig_sankey = flow.sankey_plot()
     else:
         print(f"New Flow {flow_name}")
-        flow = Flow(flow_name=flow_name, start_date=None, end_date=None)
+        flow = Flow(flow_name=flow_name, start_date=None, end_date=None, include_tollfree=tollfree_toggle)
         flow.threshold = threshold
         flow.path_highlight = path_name
         fig_sankey = flow.sankey_plot()
