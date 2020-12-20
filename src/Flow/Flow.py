@@ -73,8 +73,41 @@ class Flow(SankeyFlow):
         date = (start + delta_from_start).to_pydatetime().date()
         return date
 
-    @staticmethod
-    def time_stats(df: pd.DataFrame,
+    def plot_traces(self, fig: go.Figure,
+                    data: pd.DataFrame,
+                    x: str,
+                    y: str,
+                    hue: str,
+                    row: int,
+                    col: int,
+                    mode: str = 'lines') -> go.Figure:
+        """ The goal is create a similar behavior as plotly express or seaborn.
+            This function will take x, y, and hue column names and use them to layer
+            the correct scatter plots together.
+
+        :param fig: ploty fig where this plot (or these traces) will be places
+        :param data: dataframe containing all the columns listed in x, y, and hue
+        :param x: column name of x-axis
+        :param y: column name of y-axis
+        :param hue: column name of category column
+        :param row: the row number inside the fig where the plot will be located
+        :param col: the column number inside the fig where the plot
+        :param mode: plotly.graph_objects.Scatter mode value
+        :return: plot fig with plot added s
+        """
+        for n, category in enumerate(data[hue].unique()):
+            temp = data[data[hue] == category]
+            chart = go.Scatter(x=temp[x],
+                               y=temp[y],
+                               mode='lines',
+                               name=category,
+                               marker_color=px.colors.sequential.Plasma[n]
+                               )
+            fig.add_trace(chart, row=row, col=col)
+        return fig
+
+
+    def time_stats(self, df: pd.DataFrame,
                    hue: str,
                    topics: Dict[str, int],
                    dates: Tuple[datetime.date, datetime.date] = None) -> plt.Figure:
@@ -88,38 +121,7 @@ class Flow(SankeyFlow):
         :return: plotly figure containing a total of 2*len(topics) graphs
         """
 
-        def plot_traces(fig: go.Figure,
-                        data: pd.DataFrame,
-                        x: str,
-                        y: str,
-                        hue: str,
-                        row: int,
-                        col: int,
-                        mode: str = 'lines') -> go.Figure:
-            """ The goal is create a similar behavior as plotly express or seaborn.
-                This function will take x, y, and hue column names and use them to layer
-                the correct scatter plots together.
 
-            :param fig: ploty fig where this plot (or these traces) will be places
-            :param data: dataframe containing all the columns listed in x, y, and hue
-            :param x: column name of x-axis
-            :param y: column name of y-axis
-            :param hue: column name of category column
-            :param row: the row number inside the fig where the plot will be located
-            :param col: the column number inside the fig where the plot
-            :param mode: plotly.graph_objects.Scatter mode value
-            :return: plot fig with plot added s
-            """
-            for n, category in enumerate(data[hue].unique()):
-                temp = data[data[hue] == category]
-                chart = go.Scatter(x=temp[x],
-                                   y=temp[y],
-                                   mode='lines',
-                                   name=category,
-                                   marker_color=px.colors.sequential.Plasma[n]
-                                   )
-                fig.add_trace(chart, row=row, col=col)
-            return fig
 
 
         titles = [""] * len(topics.keys()) * 2
@@ -129,7 +131,7 @@ class Flow(SankeyFlow):
         fig = make_subplots(rows=2, cols=len(topics.keys()), subplot_titles=tuple(titles))
 
         for i, topic in enumerate(topics, 1):
-            fig = plot_traces(fig,
+            fig = self.plot_traces(fig,
                               data=df,
                               x='date',
                               y=f"avg_14_day_{topic}",
@@ -140,7 +142,7 @@ class Flow(SankeyFlow):
             if dates is not None:
                 fig.add_trace(go.Scatter(x=[dates[0], dates[1]], y=[y_max, y_max], fill='tozeroy'),
                               row=1, col=topics[topic])
-            fig = plot_traces(fig,
+            fig = self.plot_traces(fig,
                               data=df,
                               x='date',
                               y=topic,
@@ -191,6 +193,65 @@ class Flow(SankeyFlow):
             ),
             plot_bgcolor='white'
         )
+        return fig
+
+    def callback_analysis(self) -> None:
+        print("Creating callback_analysis")
+        if hasattr(self, '_data') == False:
+            self._data = self.create_user_sequence(self.start_date, self.end_date)
+
+        df = self._data.copy()
+        path_metrics = df.groupby(['date', 'TollFreeNumber']).agg({'session_duration': ['mean'],
+                                                                   'previous_duration': ['mean'],
+                                                                   'days_since_last_call': ['mean'],
+                                                                   'count': ['sum']},
+                                                                  as_index=False).reset_index()
+        df = pd.DataFrame({'TollFreeNumber': path_metrics['TollFreeNumber'],
+                           'date': path_metrics['date'],
+                           'avg_duration': path_metrics['session_duration']['mean'],
+                           'avg_previous_duration': path_metrics['previous_duration']['mean'],
+                           'avg_days_since_last_call': path_metrics['days_since_last_call']['mean'],
+                           'count': path_metrics['count']['sum']})
+
+        df.sort_values(by='date', inplace=True)
+        grpd = df.groupby(['TollFreeNumber'])
+
+        df['avg_14_day_avg_duration'] = grpd['avg_duration'].transform(lambda x: x.rolling(3, center=False).mean())
+        df['avg_14_day_avg_previous_duration'] = grpd['avg_previous_duration'].transform(
+            lambda x: x.rolling(3, center=False).mean())
+        df['avg_14_day_count'] = grpd['count'].transform(lambda x: x.rolling(3, center=False).mean())
+
+        titles = ('Count vs Date', 'Average Days Between Calls vs Date', 'Average Duration of First Call vs Date',
+                  'Average Duration of Second Call vs Date')
+        fig = make_subplots(rows=2, cols=2, subplot_titles=titles)
+        fig = self.plot_traces(fig,
+                          data=df,
+                          x='date',
+                          y='count',
+                          hue='TollFreeNumber',
+                          row=1, col=1)
+
+        fig = self.plot_traces(fig,
+                          data=df,
+                          x='date',
+                          y='avg_days_since_last_call',
+                          hue='TollFreeNumber',
+                          row=1, col=2)
+
+        fig = self.plot_traces(fig,
+                          data=df,
+                          x='date',
+                          y='avg_14_day_avg_duration',
+                          hue='TollFreeNumber',
+                          row=2, col=1)
+
+        fig = self.plot_traces(fig,
+                          data=df,
+                          x='date',
+                          y='avg_14_day_avg_previous_duration',
+                          hue='TollFreeNumber',
+                          row=2, col=2)
+        fig = self._fig_layout(fig)
         return fig
 
     def top_paths_plot(self) -> None:
