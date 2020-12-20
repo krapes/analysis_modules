@@ -184,10 +184,10 @@ class Flow(SankeyFlow):
 
         df = self._data.copy()
         session_df = df.groupby(['user_id', 'date', 'TollFreeNumber']).agg({'session_duration': ['mean'],
-                                                'previous_duration': ['mean'],
-                                                'days_since_last_call': ['mean'],
-                                                'count': ['mean']},
-                                               as_index=False).reset_index()
+                                                                            'previous_duration': ['mean'],
+                                                                            'days_since_last_call': ['mean'],
+                                                                            'count': ['mean']},
+                                                                           as_index=False).reset_index()
         session_df = pd.DataFrame({'user_id': session_df['user_id'],
                                    'date': session_df['date'],
                                    'TollFreeNumber': session_df['TollFreeNumber'],
@@ -265,8 +265,17 @@ class Flow(SankeyFlow):
         df = self._data.copy()
         target_paths = df.value_counts(['path_nickname'])[:10].reset_index().path_nickname.to_list()
         df = df[df['path_nickname'].isin(target_paths)]
-        path_metrics = df.groupby(['path_nickname', 'date']).agg({'session_duration': ['mean'], 'count': ['sum']},
-                                                                 as_index=False).reset_index()
+        session_df = df.groupby(['user_id', 'date', 'path_nickname']).agg({'session_duration': ['mean']},
+                                                                          as_index=False).reset_index()
+        session_df = pd.DataFrame({'user_id': session_df['user_id'],
+                                   'path_nickname': session_df['path_nickname'],
+                                   'date': session_df['date'],
+                                   'session_duration': session_df['session_duration']['mean'],
+                                   'count': [1] * len(session_df)
+                                   })
+        path_metrics = session_df.groupby(['path_nickname', 'date']).agg(
+            {'session_duration': ['mean'], 'count': ['sum']},
+            as_index=False).reset_index()
         df = pd.DataFrame({'path_nickname': path_metrics['path_nickname'],
                            'date': path_metrics['date'],
                            'avg_duration': path_metrics['session_duration']['mean'],
